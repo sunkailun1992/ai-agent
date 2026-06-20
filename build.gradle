@@ -1,0 +1,67 @@
+plugins {
+    id "java"
+    id "org.springframework.boot"
+    id "io.spring.dependency-management"
+}
+
+group = "com.ai.agent"
+version = "0.1.0"
+
+ext {
+    versions = [
+            java              : 17,
+            springAi          : "2.0.0",
+            springCloud       : "2025.1.1",
+            springCloudAlibaba: "2025.1.0.0",
+            nacosClient       : "3.2.2"
+    ]
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(versions.java as int)
+    }
+}
+
+springBoot {
+    mainClass = "com.ai.agent.AiAgentApplication"
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${versions.springCloud}"
+        mavenBom "com.alibaba.cloud:spring-cloud-alibaba-dependencies:${versions.springCloudAlibaba}"
+        mavenBom "org.springframework.ai:spring-ai-bom:${versions.springAi}"
+    }
+}
+
+dependencies {
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "org.springframework.boot:spring-boot-starter-webflux"
+    implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery"
+    implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config"
+    implementation "com.alibaba.nacos:nacos-client:${versions.nacosClient}"
+    implementation "org.springframework.ai:spring-ai-starter-model-google-genai"
+    implementation "org.springframework.ai:spring-ai-openai"
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+}
+
+configurations.configureEach {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == "com.alibaba.nacos"
+                && (details.requested.name == "nacos-client" || details.requested.name.startsWith("nacos-"))) {
+            details.useVersion versions.nacosClient
+            details.because "Nacos client must match the 3.2.2 server line used by the shared microservice environment."
+        }
+    }
+}
+
+tasks.named("test") {
+    useJUnitPlatform()
+}

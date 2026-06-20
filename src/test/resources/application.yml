@@ -1,0 +1,16 @@
+spring:
+  cloud:
+    nacos:
+      config:
+        enabled: false
+      discovery:
+        enabled: false
+  ai:
+    google:
+      genai:
+        api-key: test-key
+
+ai:
+  prompts:
+    nacos:
+      enabled: false
