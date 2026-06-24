@@ -24,7 +24,7 @@ java {
 }
 
 springBoot {
-    mainClass = "com.ai.agent.AiAgentApplication"
+    mainClass = "com.kellen.agent.AiAgentApplication"
 }
 
 dependencyManagement {
