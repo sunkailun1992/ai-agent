@@ -37,6 +37,7 @@
 - 多模态附件 URL 默认不可信，必须限制协议、MIME、远端 Content-Type、数量和大小；不得支持本地文件路径、classpath、ftp、jar 等协议。
 - `application.yml` 只保留本地启动和 Nacos import 入口；真实模型密钥、生产地址和数据库密码必须放在 Nacos。
 - `ai-agent-spring.yaml?group=DEFAULT_GROUP` 是当前 Nacos 配置中心约定；不要再新增 `group=test` 的服务配置引用。
+- 新增本服务对外 Controller、服务前缀，或新增后续独立 Agent 服务需要经网关访问时，必须同步评估 `../gateway` 的 Nacos `gateway-spring.yaml`；需要 Swagger UI 聚合的服务要先保证对应网关文档路径返回 200，再加入 `springdoc.swagger-ui.urls`。
 - 本项目不得引入交易、K 线、下单、账户、行情、Discord、Apple 订阅等量化业务能力。
 
 ## 验证命令

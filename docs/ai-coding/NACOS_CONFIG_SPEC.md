@@ -78,4 +78,4 @@ logging → reuse-configuration → security-auth(仅鉴权服务) → swagger
 2. **保值不改值**：本规范是布局搬迁，**逐键保留原值**。`reuse-configuration` 的既有 `custom.*` 只增不改不删；utils `@Value` 消费的 `mysql/mysql-gray` 等绝不动。
 3. **AI 自主边界**：配置中心的**结构性调整允许 AI 自主完成**——新增/拆分/合并 dataId、调整 import 与顺序、改 `${}` 引用、调整 Nacos 接入地址 / namespace / group。但**禁止触碰真实密钥/凭证**（access-key/secret、app-secret、API key、DB 密码、token、license 等，疑似密钥只告警、由负责人处理），且布局搬迁必须**保值不改值**，不得擅自变更生产业务配置的实际取值。真实密钥/地址只在 Nacos，仓库与 Nacos 模板只放占位符。
 4. **加法优先迁移**：先建新 dataId（与旧块双份共存，零影响）→ 各服务切 import + 改引用 → 逐个重启读回验证 → **最后一步**才从 `reuse-configuration` 删旧块。
-5. **新增微服务**：复制 `application.yml` 模板，仅改 `server.port` + `spring.application.name` + 按角色裁剪 import 列表，禁止重写引导段结构。
+5. **新增微服务**：复制 `application.yml` 模板，仅改 `server.port` + `spring.application.name` + 按角色裁剪 import 列表，禁止重写引导段结构。若新服务需要通过网关访问或进入 Swagger UI 聚合，必须同步读取并整体更新 Nacos `gateway-spring.yaml`（`DEFAULT_GROUP`）：补 `spring.cloud.gateway.server.webflux.routes` 业务路由和 `springdoc.swagger-ui.urls` 聚合项；发布后读回并验证对应网关文档路径（例如 `/<service>/v3/api-docs`）、`/v3/api-docs/swagger-config` 与 `/swagger-ui/index.html`。
