@@ -13,7 +13,8 @@ ext {
             springAi          : "2.0.0",
             springCloud       : "2025.1.1",
             springCloudAlibaba: "2025.1.0.0",
-            nacosClient       : "3.2.2"
+            nacosClient       : "3.2.2",
+            dubbo             : "3.3.6"
     ]
 }
 
@@ -42,6 +43,8 @@ dependencies {
     implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery"
     implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config"
     implementation "com.alibaba.nacos:nacos-client:${versions.nacosClient}"
+    implementation "org.apache.dubbo:dubbo-spring-boot-starter:${versions.dubbo}"
+    implementation "org.apache.dubbo:dubbo-registry-nacos:${versions.dubbo}"
     implementation "org.springframework.ai:spring-ai-starter-model-google-genai"
     implementation "org.springframework.ai:spring-ai-openai"
     testImplementation "org.springframework.boot:spring-boot-starter-test"

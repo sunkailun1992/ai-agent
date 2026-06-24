@@ -20,7 +20,7 @@
 | 层 | dataId | group | 内容 |
 |---|---|---|---|
 | **L0 本地引导** | 各仓库 `src/main/resources/application.yml` | — | 连 Nacos 前必需的最小集：`server.port`、`spring.application.name`、`custom.nacos-*`、`spring.cloud.nacos`、`spring.config.import`。**不放任何业务/密钥**。5 服务此段逐字相同，只差 `port` + `name` + import 列表 |
-| **L1 共享基础设施** | `logging.yml` `reuse-configuration.yaml` `redis.yaml` `rabbitmq.yaml` `elasticsearch.yaml` `seata.yaml` `zipkin.yaml` `admin.yaml` `feign.yaml` `xxl-job.yaml` `mybatis-plus.yaml` `security-auth.yaml` `swagger.yaml` | DEFAULT_GROUP | fleet 公共基础设施 / 框架配置 |
+| **L1 共享基础设施** | `logging.yml` `reuse-configuration.yaml` `redis.yaml` `rabbitmq.yaml` `elasticsearch.yaml` `seata.yaml` `zipkin.yaml` `admin.yaml` `dubbo.yaml` `xxl-job.yaml` `mybatis-plus.yaml` `security-auth.yaml` `swagger.yaml` | DEFAULT_GROUP | fleet 公共基础设施 / 框架配置 |
 | **L2 共享横切域** | `aliyun.yaml`（aliyun 账号+OSS+SMS+钉钉+直播+email）、`a2a.yaml`（A2A 共享值） | DEFAULT_GROUP | 多服务共享的第三方/领域配置 |
 | **L3 服务业务** | `{svc}.yaml` | DEFAULT_GROUP | 本服务业务键 + 本服务**私有**的 `@ConfigurationProperties` 树（如 `ai` 的 `wechat`、`aliyun.oss` bucket） |
 | **L4 服务框架/环境** | `{svc}-spring.yaml` | DEFAULT_GROUP | datasource、profile、discovery、`spring.ai` model、gateway 路由等 Spring/环境配置 |
@@ -30,7 +30,7 @@
 ## 3. 各 dataId 内容边界
 
 - **`reuse-configuration.yaml`**：**只放 `custom.*` 公共变量**（基础设施地址 + Nacos 凭据变量，如 `custom.infra-*`、`custom.nacos-username/password/context-path`）。**不放任何业务块或第三方密钥块**。
-- **`logging/redis/rabbitmq/elasticsearch/seata/zipkin/admin/feign/xxl-job/mybatis-plus/security-auth`**：各对应一组 utils 自动配置 / Spring 体系前缀，整组留在各自 dataId。
+- **`logging/redis/rabbitmq/elasticsearch/seata/zipkin/admin/dubbo/xxl-job/mybatis-plus/security-auth`**：各对应一组 utils 自动配置 / Spring 体系前缀，整组留在各自 dataId。
 - **`swagger.yaml`**：`swagger.enable` + `swagger.name=${spring.application.name}`；要自定义显示名的服务在自己的 `{svc}.yaml` 覆盖一行。
 - **`aliyun.yaml`**：整棵 `aliyun`（account key + `oss` + `sms` + `dingding` + `liveStreaming`）+ 顶层 `email`。绑定方为 utils 的 `CommonAliyunProperties(prefix="aliyun")`。**凡使用任一 aliyun 能力、或可能触发 utils `@RequestRequired` 钉钉告警的服务都要 import**。
 - **`a2a.yaml`**：A2A 共享值，统一放 `custom.a2a-*`（协议版本、context-path、tenant、provider-org、agent 名契约）+ Nacos 凭据引用。`ai`（消费端 `ai.agent-registry.*`）与 `ai-agent`（生产端 `ai.agent.registry.*`）各自的块**引用** `${custom.a2a-*}`，agent 名两端共用同一变量，保证契约一致。
@@ -42,7 +42,7 @@
 ```
 logging → reuse-configuration → security-auth(仅鉴权服务) → swagger
 → {svc} → {svc}-spring
-→ mybatis-plus → redis → rabbitmq → elasticsearch → seata → zipkin → admin → feign → xxl-job
+→ mybatis-plus → redis → rabbitmq → elasticsearch → seata → zipkin → admin → dubbo → xxl-job
 → aliyun(用到 aliyun/钉钉告警的服务) → a2a(A2A 参与方)
 ```
 
@@ -64,7 +64,7 @@ logging → reuse-configuration → security-auth(仅鉴权服务) → swagger
 | seata | ✅ | ❌ | ✅ | ✅ | ❌ |
 | zipkin | ✅ | ❌ | ✅ | ✅ | ✅ |
 | admin | ✅ | ❌ | ✅ | ✅ | ✅ |
-| feign | ✅ | ❌ | ✅ | ✅ | ❌ |
+| dubbo | ✅ | ✅ | ✅ | ✅ | ❌ |
 | xxl-job | ✅ | ❌ | ✅ | ✅ | ❌ |
 | aliyun | ✅(OSS) | ⬜验证@RequestRequired | ✅ | ✅ | ⬜验证@RequestRequired |
 | a2a | ✅(消费) | ✅(生产) | ❌ | ❌ | ❌ |

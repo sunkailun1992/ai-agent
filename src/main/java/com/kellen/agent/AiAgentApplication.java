@@ -4,6 +4,7 @@ import com.kellen.agent.config.AgentProperties;
 import com.kellen.agent.config.AgentRegistryProperties;
 import com.kellen.agent.config.AiPromptProperties;
 import com.kellen.agent.config.NacosAiPromptProperties;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
@@ -15,6 +16,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
  * 用户会话、审计、文件 token 和问卷状态仍由主 AI 服务管理。</p>
  */
 @SpringBootApplication
+@EnableDubbo
 @ConfigurationPropertiesScan(basePackageClasses = {
         AgentProperties.class,
         AgentRegistryProperties.class,
