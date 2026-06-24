@@ -20,7 +20,8 @@
 5. `docs/ai-coding/AI_DESIGN_PATTERN_GUIDE.md`
 6. `docs/ai-coding/AI_ENGINEERING_GUARDRAILS.md`
 7. `docs/ai-coding/SECURITY_CODING_SPEC.md`
-8. 目标 Controller、Service、DTO、配置或测试
+8. `docs/ai-coding/NACOS_CONFIG_SPEC.md`：修改 Nacos 配置中心、共享 dataId 或 `application.yml` import 前必读。
+9. 目标 Controller、Service、DTO、配置或测试
 
 ## 项目边界
 
@@ -35,7 +36,7 @@
 - 患者分析 Agent 必须保留医疗安全边界，不能替代医生诊断、治疗、用药或急救判断。
 - 多模态附件 URL 默认不可信，必须限制协议、MIME、远端 Content-Type、数量和大小；不得支持本地文件路径、classpath、ftp、jar 等协议。
 - `application.yml` 只保留本地启动和 Nacos import 入口；真实模型密钥、生产地址和数据库密码必须放在 Nacos。
-- `ai-agent-spring.yaml?group=test` 中的 `test` 是当前 Nacos 环境分组标识，不代表 `src/test` 或单元测试资源，不得误改为 `DEFAULT_GROUP`。
+- `ai-agent-spring.yaml?group=DEFAULT_GROUP` 是当前 Nacos 配置中心约定；不要再新增 `group=test` 的服务配置引用。
 - 本项目不得引入交易、K 线、下单、账户、行情、Discord、Apple 订阅等量化业务能力。
 
 ## 验证命令

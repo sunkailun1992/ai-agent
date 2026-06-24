@@ -1,6 +1,6 @@
-package com.ai.agent.service;
+package com.kellen.agent.service;
 
-import com.ai.agent.config.AiPromptProperties;
+import com.kellen.agent.config.AiPromptProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 

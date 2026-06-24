@@ -28,7 +28,7 @@
 - `ai-agent.yaml`
 - `ai-agent-spring.yaml`
 
-`group=test` 是当前 Nacos 元空间环境标识，不是单元测试资源分组。
+当前 fleet 的服务业务配置和 `{svc}-spring.yaml` 统一使用 `group=DEFAULT_GROUP`。
 
 真实模型 Key 必须来自 Nacos 或环境变量，不得提交到仓库。
 

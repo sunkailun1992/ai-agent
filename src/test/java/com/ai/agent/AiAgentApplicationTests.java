@@ -1,12 +1,13 @@
 package com.ai.agent;
 
+import com.kellen.agent.AiAgentApplication;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * 应用上下文加载测试。
  */
-@SpringBootTest(properties = {
+@SpringBootTest(classes = AiAgentApplication.class, properties = {
         "spring.cloud.nacos.config.enabled=false",
         "spring.cloud.nacos.discovery.enabled=false",
         "spring.ai.google.genai.api-key=test-key",

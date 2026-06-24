@@ -1,6 +1,7 @@
 package com.ai.agent.service;
 
-import com.ai.agent.config.AiPromptProperties;
+import com.kellen.agent.config.AiPromptProperties;
+import com.kellen.agent.service.AiPromptProvider;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

@@ -1,4 +1,4 @@
-package com.ai.agent.config;
+package com.kellen.agent.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;

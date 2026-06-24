@@ -1,4 +1,4 @@
-package com.ai.agent.dto;
+package com.kellen.agent.dto;
 
 /**
  * 问卷定义摘要。

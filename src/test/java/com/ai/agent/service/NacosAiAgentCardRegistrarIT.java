@@ -1,11 +1,12 @@
 package com.ai.agent.service;
 
-import com.ai.agent.config.AgentRegistryProperties;
+import com.kellen.agent.config.AgentRegistryProperties;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.ai.AiFactory;
 import com.alibaba.nacos.api.ai.AiService;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardDetailInfo;
 import com.alibaba.nacos.api.ai.model.a2a.AgentInterface;
+import com.kellen.agent.service.NacosAiAgentCardRegistrar;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 

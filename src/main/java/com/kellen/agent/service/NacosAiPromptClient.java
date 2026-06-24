@@ -1,6 +1,6 @@
-package com.ai.agent.service;
+package com.kellen.agent.service;
 
-import com.ai.agent.config.NacosAiPromptProperties;
+import com.kellen.agent.config.NacosAiPromptProperties;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.ai.AiFactory;
 import com.alibaba.nacos.api.ai.AiService;

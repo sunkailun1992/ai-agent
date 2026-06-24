@@ -38,12 +38,9 @@
 - `logging.yml`
 - `reuse-configuration.yaml`
 - `ai-agent.yaml`
-
-同时从 `group=test` 加载：
-
 - `ai-agent-spring.yaml`
 
-这里的 `test` 是当前 Nacos 元空间环境标识，不是单元测试资源分组。
+当前 fleet 的服务业务配置和 `{svc}-spring.yaml` 已统一放在 `DEFAULT_GROUP`。
 
 `ai-agent.yaml` 示例：
 

@@ -1,4 +1,4 @@
-package com.ai.agent.dto;
+package com.kellen.agent.dto;
 
 /**
  * 多模态媒体输入。

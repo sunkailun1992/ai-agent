@@ -1,4 +1,4 @@
-package com.ai.agent.dto;
+package com.kellen.agent.dto;
 
 /**
  * 调用方传入的历史上下文消息。

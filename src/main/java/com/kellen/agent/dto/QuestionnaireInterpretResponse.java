@@ -1,4 +1,4 @@
-package com.ai.agent.dto;
+package com.kellen.agent.dto;
 
 /**
  * 问卷答案解释响应。

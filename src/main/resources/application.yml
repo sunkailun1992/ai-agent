@@ -38,7 +38,11 @@ spring:
       - "optional:nacos:logging.yml?group=DEFAULT_GROUP&refreshEnabled=true"
       # reuse-configuration.yaml：Nacos、模型服务和公共基础设施地址变量。
       - "optional:nacos:reuse-configuration.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      # swagger.yaml：Fleet 统一 Swagger/OpenAPI 开关（显示名默认取服务名）。
+      - "optional:nacos:swagger.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
       # ai-agent.yaml：Agent 执行层专属业务参数和 ai.prompts.* Prompt 配置。
       - "optional:nacos:ai-agent.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
-      # ai-agent-spring.yaml：Agent 执行层 Spring AI、端口和 Actuator 等配置；group=test 是当前 Nacos 环境分组标识，不是单元测试资源。
-      - "optional:nacos:ai-agent-spring.yaml?group=test&refreshEnabled=true"
+      # ai-agent-spring.yaml：Agent 执行层 Spring AI、端口和 Actuator 等配置；group=DEFAULT_GROUP 是当前 Nacos 环境分组标识，不是单元测试资源。
+      - "optional:nacos:ai-agent-spring.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      # a2a.yaml：A2A 共享契约值（custom.a2a-*），ai-agent 生产端 ai.agent.registry.* 引用。
+      - "optional:nacos:a2a.yaml?group=DEFAULT_GROUP&refreshEnabled=true"

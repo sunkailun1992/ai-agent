@@ -1,7 +1,7 @@
-package com.ai.agent.service;
+package com.kellen.agent.service;
 
-import com.ai.agent.dto.AgentChatRequest;
-import com.ai.agent.dto.MediaInput;
+import com.kellen.agent.dto.AgentChatRequest;
+import com.kellen.agent.dto.MediaInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;

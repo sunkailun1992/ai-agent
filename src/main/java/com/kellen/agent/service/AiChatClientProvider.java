@@ -1,6 +1,6 @@
-package com.ai.agent.service;
+package com.kellen.agent.service;
 
-import com.ai.agent.config.AgentProperties;
+import com.kellen.agent.config.AgentProperties;
 import com.openai.client.OpenAIClient;
 import com.openai.client.OpenAIClientAsync;
 import io.micrometer.observation.ObservationRegistry;
