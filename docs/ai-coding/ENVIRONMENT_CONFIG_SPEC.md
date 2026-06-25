@@ -15,12 +15,12 @@ src/main/resources/application-prod.yml
 
 职责划分：
 
-- `application.yml`：通用启动骨架，放 `server.port`、`spring.application.name`、`spring.profiles.active`、`spring.config.import`、Nacos config/discovery 绑定逻辑和 `custom.nacos-group`。
-- `application-dev.yml`：只放 dev 环境 Nacos `server-addr` 和 `namespace`。
-- `application-test.yml`：只放 test 环境 Nacos `server-addr` 和 `namespace`。
-- `application-prod.yml`：只放 prod 环境 Nacos `server-addr` 和 `namespace`。
+- `application.yml`：通用启动骨架，放 `server.port`、`spring.application.name`、`spring.profiles.active` 和 `custom.nacos-group`；不放 Nacos 地址、namespace 或远程业务配置。
+- `application-dev.yml`：放 dev 环境 Nacos `server-addr`、`namespace`、Nacos config/discovery 绑定逻辑和本环境 `spring.config.import`。
+- `application-test.yml`：放 test 环境 Nacos `server-addr`、`namespace`、Nacos config/discovery 绑定逻辑和本环境 `spring.config.import`。
+- `application-prod.yml`：放 prod 环境 Nacos `server-addr`、`namespace`、Nacos config/discovery 绑定逻辑和本环境 `spring.config.import`。
 
-禁止在 `application-dev.yml`、`application-test.yml`、`application-prod.yml` 中放数据库、Redis、MQ、OSS、模型密钥、业务参数、Dubbo 参数或路由规则；这些配置必须继续放 Nacos 对应 namespace 的 `DEFAULT_GROUP` dataId。
+禁止在 `application-dev.yml`、`application-test.yml`、`application-prod.yml` 中放数据库、Redis、MQ、OSS、模型密钥、业务参数、Dubbo 参数或业务路由规则；这些配置必须继续放 Nacos 对应 namespace 的 `DEFAULT_GROUP` dataId。profile 文件只允许保存连接 Nacos 和导入 dataId 所需的启动入口。
 
 ## 启动方式
 
@@ -70,7 +70,7 @@ prod:
 
 - `spring.cloud.nacos.config.namespace` 和 `spring.cloud.nacos.discovery.namespace` 必须使用同一个 `custom.namespace`。
 - `spring.cloud.nacos.config.server-addr` 和 `spring.cloud.nacos.discovery.server-addr` 必须使用同一个 `custom.nacos-ip`。
-- Nacos group 统一为 `DEFAULT_GROUP`，默认由 `custom.nacos-group` 控制。
+- Nacos group 统一为 `DEFAULT_GROUP`；`spring.config.import` URL 必须显式携带 `group=DEFAULT_GROUP`，且 import 必须与该 profile 的 Nacos 地址放在同一个环境文件中，避免 ConfigData 解析阶段拿不到 `custom.nacos-ip`。
 - 不再用 `group=test` 表达环境。
 - 同名 dataId 在不同 namespace 保存不同环境值。
 
@@ -94,7 +94,7 @@ prod:
 
 ## 禁止事项
 
-- 禁止删除 `application.yml` 并在各环境文件重复 `spring.config.import`。
+- 禁止把 `spring.config.import` 放回通用 `application.yml` 再引用 profile 文件里的 Nacos 地址；ConfigData 解析阶段拿不到 profile 中的 `custom.nacos-ip`，会触发 `illegal URI`。
 - 禁止把业务配置从 Nacos 搬回本地 profile 文件。
 - 禁止用 Git 分支名区分 dev/test/prod。
 - 禁止 config namespace 和 discovery namespace 不一致。

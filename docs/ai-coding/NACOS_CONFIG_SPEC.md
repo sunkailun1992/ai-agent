@@ -8,8 +8,8 @@
 ## 1. 机制：只用官方主流方式，不自创
 
 - **统一用 Spring Cloud Alibaba 的 `spring.config.import` 导入远程配置**（SCA 2025.x 官方文档主推的多配置导入方式）。
-  - 写法：`- "optional:nacos:{dataId}?refreshEnabled=true"`。
-  - Nacos group 由 `spring.cloud.nacos.config.group` / `custom.nacos-group` 统一控制；只有跨 group 读取的特殊 dataId 才在 import URL 中显式写 `group=...`。
+  - 写法：`- "optional:nacos:{dataId}?group=DEFAULT_GROUP&refreshEnabled=true"`。
+  - 当前 fleet 的 import URL 必须显式写 `group=DEFAULT_GROUP`；`spring.cloud.nacos.config.group` / `custom.nacos-group` 仍作为注册与默认分组入口。`spring.config.import` 必须与对应 profile 的 Nacos 地址同文件，避免 ConfigData 解析阶段拿不到 `custom.nacos-ip`。
   - **不使用** `bootstrap.yml` + `spring.cloud.nacos.config.shared-configs/extension-configs` 经典写法，全 fleet 不混用两套机制。
 - **dataId 命名**：
   - 服务自身配置：`{spring.application.name}.yaml`（业务）与 `{spring.application.name}-spring.yaml`（Spring 框架/环境）。
@@ -21,7 +21,7 @@
 
 | 层 | dataId | group | 内容 |
 |---|---|---|---|
-| **L0 本地引导** | 各仓库 `src/main/resources/application.yml` + `application-dev.yml` / `application-test.yml` / `application-prod.yml` | — | 连 Nacos 前必需的最小集：`application.yml` 放 `server.port`、`spring.application.name`、`spring.profiles.active`、`custom.nacos-group`、`spring.cloud.nacos`、`spring.config.import`；`application-*.yml` 只放对应环境的 Nacos `server-addr` 和 `namespace`。**不放任何业务/密钥**。5 服务骨架只差 `port` + `name` + import 列表 |
+| **L0 本地引导** | 各仓库 `src/main/resources/application.yml` + `application-dev.yml` / `application-test.yml` / `application-prod.yml` | — | 连 Nacos 前必需的最小集：`application.yml` 放 `server.port`、`spring.application.name`、`spring.profiles.active`、`custom.nacos-group`；`application-*.yml` 放对应环境的 Nacos `server-addr`、`namespace`、Nacos config/discovery 绑定逻辑和本环境 `spring.config.import`。**不放任何业务/密钥**。5 服务骨架只差 `port` + `name` + 各自 profile import 列表 |
 | **L1 共享基础设施** | `logging.yml` `reuse-configuration.yaml` `traffic-governance.yaml` `redis.yaml` `rabbitmq.yaml` `elasticsearch.yaml` `seata.yaml` `zipkin.yaml` `admin.yaml` `dubbo.yaml` `xxl-job.yaml` `mybatis-plus.yaml` `security-auth.yaml` `swagger.yaml` | DEFAULT_GROUP | fleet 公共基础设施 / 框架配置 |
 | **L2 共享横切域** | `aliyun.yaml`（aliyun 账号+OSS+SMS+钉钉+直播+email）、`a2a.yaml`（A2A 共享值） | DEFAULT_GROUP | 多服务共享的第三方/领域配置 |
 | **L3 服务业务** | `{svc}.yaml` | DEFAULT_GROUP | 本服务业务键 + 本服务**私有**的 `@ConfigurationProperties` 树（如 `ai` 的 `wechat`、`aliyun.oss` bucket） |
@@ -32,7 +32,7 @@
 ## 3. 各 dataId 内容边界
 
 - **`reuse-configuration.yaml`**：**只放 `custom.*` 公共变量**（基础设施地址 + Nacos 凭据变量，如 `custom.infra-*`、`custom.nacos-username/password/context-path`）。**不放任何业务块或第三方密钥块**。
-- **本地 `application-dev/test/prod.yml`**：只定义 `custom.nacos-ip` 和 `custom.namespace`，用于选择对应环境的 Nacos 配置中心与注册中心；当前 dev/test/prod 默认指向同一 Nacos 地址和 namespace，后期环境拆开时只改对应 profile 文件或部署环境变量。
+- **本地 `application-dev/test/prod.yml`**：定义 `custom.nacos-ip`、`custom.namespace`、Nacos config/discovery 绑定逻辑和本环境 `spring.config.import`；当前 dev/test/prod 默认指向同一 Nacos 地址和 namespace，后期环境拆开时只改对应 profile 文件或部署环境变量。
 - **`traffic-governance.yaml`**：统一放灰度发布请求头名、默认 `X-Release-Version`、默认 `X-Traffic-Lane`、实例 `release.version`/`traffic.lane`/`canary.tag`/`traffic.weight` 元数据，以及 Nacos Discovery 元数据。**权重是治理配置和实例元数据，不由公网前端随意决定**；公网前端默认只带发布版本和泳道，灰度 tag/权重必须由受控配置显式开启。
 - **`logging/traffic-governance/redis/rabbitmq/elasticsearch/seata/zipkin/admin/dubbo/xxl-job/mybatis-plus/security-auth`**：各对应一组 utils 自动配置 / Spring 体系前缀，整组留在各自 dataId。
 - **`swagger.yaml`**：`swagger.enable` + `swagger.name=${spring.application.name}`；要自定义显示名的服务在自己的 `{svc}.yaml` 覆盖一行。

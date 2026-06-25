@@ -3,3 +3,26 @@
 custom:
   nacos-ip: ${NACOS_DEV_SERVER_ADDR:${NACOS_SERVER_ADDR:172.16.1.39:8848}}
   namespace: ${NACOS_DEV_NAMESPACE:${NACOS_NAMESPACE:cfbf4c42-5ebb-4566-a095-30a568556a85}}
+
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${custom.nacos-ip}
+        namespace: ${custom.namespace}
+        group: ${custom.nacos-group}
+      config:
+        server-addr: ${custom.nacos-ip}
+        namespace: ${custom.namespace}
+        group: ${custom.nacos-group}
+        file-extension: yaml
+  config:
+    import:
+      - "optional:nacos:logging.yml?group=DEFAULT_GROUP&refreshEnabled=true"
+      - "optional:nacos:reuse-configuration.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      - "optional:nacos:traffic-governance.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      - "optional:nacos:swagger.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      - "optional:nacos:dubbo.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      - "optional:nacos:ai-agent.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      - "optional:nacos:ai-agent-spring.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      - "optional:nacos:a2a.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
