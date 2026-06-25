@@ -5,14 +5,13 @@ server:
 # 连接 Nacos 前必须先有的启动入口配置。
 # 这里不能引用 reuse-configuration.yaml，因为远程配置还没有加载。
 custom:
-  # Nacos 服务端地址，默认使用蒲公英内网地址；部署时可用 NACOS_SERVER_ADDR 覆盖。
-  nacos-ip: ${NACOS_SERVER_ADDR:172.16.1.39:8848}
-  # Nacos 命名空间，隔离本套微服务配置和注册实例。
-  namespace: ${NACOS_NAMESPACE:cfbf4c42-5ebb-4566-a095-30a568556a85}
   # Nacos 默认分组，大部分公共配置放 DEFAULT_GROUP。
   nacos-group: ${NACOS_GROUP:DEFAULT_GROUP}
 
 spring:
+  profiles:
+    # 只通过 APP_ENV 或 spring.profiles.active 选择 dev/test/prod；Nacos 地址和 namespace 放在对应 application-*.yml。
+    active: ${APP_ENV:dev}
   application:
     # 服务注册名，也是主 ai 服务可通过服务名调用的 Agent 执行层名称。
     name: ai-agent
