@@ -38,6 +38,8 @@ spring:
       - "optional:nacos:logging.yml?group=DEFAULT_GROUP&refreshEnabled=true"
       # reuse-configuration.yaml：Nacos、模型服务和公共基础设施地址变量。
       - "optional:nacos:reuse-configuration.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      # traffic-governance.yaml：灰度发布版本、泳道、实例元数据和权重治理配置。
+      - "optional:nacos:traffic-governance.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
       # swagger.yaml：Fleet 统一 Swagger/OpenAPI 开关（显示名默认取服务名）。
       - "optional:nacos:swagger.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
       # dubbo.yaml：Dubbo RPC 注册、协议、超时和重试等共享配置。
