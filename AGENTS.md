@@ -23,9 +23,10 @@
 8. `docs/ai-coding/ENVIRONMENT_CONFIG_SPEC.md`：确认环境、Nacos namespace、Java profile 和前端/小程序边界。
 9. `docs/ai-coding/VERSIONING_SPEC.md`：确认 `group = 'com'`、`version = '1.0.0'`、补丁递增和消费者同步规则。
 10. `docs/ai-coding/RPC_API_CODING_SPEC.md`：涉及 Dubbo RPC provider、consumer、接口或 DTO 时必须阅读。
-11. `docs/ai-coding/SECURITY_CODING_SPEC.md`
-12. `docs/ai-coding/NACOS_CONFIG_SPEC.md`：修改 Nacos 配置中心、共享 dataId 或 `application.yml` import 前必读。
-13. 目标 Controller、Service、DTO、配置或测试
+11. `docs/ai-coding/TESTING_SPEC.md`：确认业务模块 SpringBootTest、真实 HTTP 集成测试、模型 fake/stub 和 AssertJ 边界。
+12. `docs/ai-coding/SECURITY_CODING_SPEC.md`
+13. `docs/ai-coding/NACOS_CONFIG_SPEC.md`：修改 Nacos 配置中心、共享 dataId 或 `application.yml` import 前必读。
+14. 目标 Controller、Service、DTO、配置或测试
 
 ## 项目边界
 
@@ -36,6 +37,7 @@
 - 模型选择必须通过 `AiChatClientProvider`，业务代码不得直接绑定某个模型供应商。
 - 当前 Provider 允许值为 `google` / `deepseek`；新增 Provider 必须补齐白名单、配置、文档、测试和回滚说明。
 - Prompt 优先通过 Nacos AI Prompt 管理或 `ai.prompts.*` 配置读取；代码中的长 Prompt 只能作为兜底，不能成为运营主数据。
+- 测试分层按 `docs/ai-coding/TESTING_SPEC.md` 执行；核心 Agent 链路不能只靠 mock 或纯对象 `assertThat`，必须补 Spring Boot 级别测试。
 - 问卷 Agent 必须无状态执行：只理解当前题、已采集答案摘要和本轮输入，不能保存问卷状态或跳题。
 - 患者分析 Agent 必须保留医疗安全边界，不能替代医生诊断、治疗、用药或急救判断。
 - 多模态附件 URL 默认不可信，必须限制协议、MIME、远端 Content-Type、数量和大小；不得支持本地文件路径、classpath、ftp、jar 等协议。
