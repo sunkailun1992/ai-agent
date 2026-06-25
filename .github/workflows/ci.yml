@@ -28,6 +28,20 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      - name: Checkout rpc-api dependency
+        uses: actions/checkout@v4
+        with:
+          repository: sunkailun1992/rpc-api
+          ref: main
+          path: .ci-rpc-api
+
+      - name: Hide CI dependency checkout from scans
+        run: echo ".ci-rpc-api/" >> .git/info/exclude
+
+      - name: Publish rpc-api to Maven Local
+        working-directory: .ci-rpc-api
+        run: ./gradlew -q publishToMavenLocal
+
       - name: Prepare scripts
         run: chmod +x gradlew scripts/check-secrets.sh
 

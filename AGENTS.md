@@ -6,7 +6,7 @@
 
 - 项目名称：`ai-agent`
 - 项目类型：AI Agent 执行层服务
-- 技术栈：Java 17、Spring Boot 4、Spring AI 2、Spring Cloud Alibaba、Nacos、Gradle Wrapper
+- 技术栈：Java 17、Spring Boot 4、Spring AI 2、Spring Cloud Alibaba、Nacos、Dubbo、Gradle Wrapper、`com:rpc-api`
 - 外部模型：Google Gemini、DeepSeek/OpenAI-compatible
 - 核心职责：承载可拆分的 Spring AI Agent 执行逻辑，对外提供患者分析、问卷自然追问、问卷答案解释等 Agent 接口
 - 核心风险：模型 Provider 选错、Prompt 污染、外部媒体 URL SSRF、密钥泄露、患者资料越权、日志输出用户隐私、把主 `ai` 服务的会话和问卷状态误搬到 Agent 层
@@ -22,9 +22,10 @@
 7. `docs/ai-coding/BRANCHING_SPEC.md`：确认分支命名、短分支生命周期、release/hotfix、tag 和清理规则。
 8. `docs/ai-coding/ENVIRONMENT_CONFIG_SPEC.md`：确认环境、Nacos namespace、Java profile 和前端/小程序边界。
 9. `docs/ai-coding/VERSIONING_SPEC.md`：确认 `group = 'com'`、`version = '1.0.0'`、补丁递增和消费者同步规则。
-10. `docs/ai-coding/SECURITY_CODING_SPEC.md`
-11. `docs/ai-coding/NACOS_CONFIG_SPEC.md`：修改 Nacos 配置中心、共享 dataId 或 `application.yml` import 前必读。
-12. 目标 Controller、Service、DTO、配置或测试
+10. `docs/ai-coding/RPC_API_CODING_SPEC.md`：涉及 Dubbo RPC provider、consumer、接口或 DTO 时必须阅读。
+11. `docs/ai-coding/SECURITY_CODING_SPEC.md`
+12. `docs/ai-coding/NACOS_CONFIG_SPEC.md`：修改 Nacos 配置中心、共享 dataId 或 `application.yml` import 前必读。
+13. 目标 Controller、Service、DTO、配置或测试
 
 ## 项目边界
 
@@ -41,6 +42,7 @@
 - `application.yml` 只保留本地启动和 Nacos import 入口；真实模型密钥、生产地址和数据库密码必须放在 Nacos。
 - `ai-agent-spring.yaml` 位于当前全局 Nacos 配置 group `DEFAULT_GROUP`；不要再新增 `group=test` 的服务配置引用。
 - 新增本服务对外 Controller、服务前缀，或新增后续独立 Agent 服务需要经网关访问时，必须同步评估 `../gateway` 的 Nacos `gateway-spring.yaml`；需要 Swagger UI 聚合的服务要先保证对应网关文档路径返回 200，再加入 `springdoc.swagger-ui.urls`。
+- 跨服务 Dubbo RPC 接口和 DTO 统一维护在同级 `../rpc-api`；`ai-agent` 只实现或调用契约，不在本服务或 `utils` 复制接口定义。
 - 本项目不得引入交易、K 线、下单、账户、行情、Discord、Apple 订阅等量化业务能力。
 
 ## 验证命令
@@ -52,7 +54,7 @@
 bash scripts/check-secrets.sh
 ```
 
-涉及模型 Provider、Prompt、多模态、Nacos 配置或接口契约时，必须执行完整构建或说明不能执行的原因。
+涉及 `rpc-api` 契约、模型 Provider、Prompt、多模态、Nacos 配置或接口契约时，必须执行完整构建或说明不能执行的原因。
 
 ## 禁止事项
 

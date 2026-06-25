@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ai.agent"
-version = "0.1.4"
+version = "0.1.5"
 
 ext {
     versions = [
@@ -14,7 +14,8 @@ ext {
             springCloud       : "2025.1.1",
             springCloudAlibaba: "2025.1.0.0",
             nacosClient       : "3.2.2",
-            dubbo             : "3.3.6"
+            dubbo             : "3.3.6",
+            rpcApi            : "1.0.0"
     ]
 }
 
@@ -45,6 +46,7 @@ dependencies {
     implementation "com.alibaba.nacos:nacos-client:${versions.nacosClient}"
     implementation "org.apache.dubbo:dubbo-spring-boot-starter:${versions.dubbo}"
     implementation "org.apache.dubbo:dubbo-registry-nacos:${versions.dubbo}"
+    implementation "com:rpc-api:${versions.rpcApi}"
     implementation "org.springframework.ai:spring-ai-starter-model-google-genai"
     implementation "org.springframework.ai:spring-ai-openai"
     testImplementation "org.springframework.boot:spring-boot-starter-test"

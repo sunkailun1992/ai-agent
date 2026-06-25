@@ -14,8 +14,9 @@
 8. `BRANCHING_SPEC.md`
 9. `ENVIRONMENT_CONFIG_SPEC.md`
 10. `VERSIONING_SPEC.md`
-11. `SECURITY_CODING_SPEC.md`
-12. 目标 Controller、Service、DTO、配置或测试
+11. `RPC_API_CODING_SPEC.md`
+12. `SECURITY_CODING_SPEC.md`
+13. 目标 Controller、Service、DTO、配置或测试
 
 ## 必读结论
 
@@ -27,3 +28,4 @@
 - 分支命名、短分支生命周期、release/hotfix、tag 和分支清理按 `BRANCHING_SPEC.md` 处理。
 - 环境、Nacos namespace、Java profile 和前端/小程序边界按 `ENVIRONMENT_CONFIG_SPEC.md` 处理。
 - 项目版本、公共包依赖和后端 Java 新项目基础坐标按 `VERSIONING_SPEC.md` 处理；纯 AI 规范或 README 改动不提升制品版本。
+- Dubbo RPC 契约统一维护在同级 `../rpc-api`；`ai-agent` 通过契约暴露或消费 Agent 能力，不在服务内复制接口/DTO。
