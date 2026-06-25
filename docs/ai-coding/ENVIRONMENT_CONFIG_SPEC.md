@@ -70,7 +70,7 @@ prod:
 
 - `spring.cloud.nacos.config.namespace` 和 `spring.cloud.nacos.discovery.namespace` 必须使用同一个 `custom.namespace`。
 - `spring.cloud.nacos.config.server-addr` 和 `spring.cloud.nacos.discovery.server-addr` 必须使用同一个 `custom.nacos-ip`。
-- Nacos group 统一为 `DEFAULT_GROUP`；`spring.config.import` URL 必须显式携带 `group=DEFAULT_GROUP`，且 import 必须与该 profile 的 Nacos 地址放在同一个环境文件中，避免 ConfigData 解析阶段拿不到 `custom.nacos-ip`。
+- Nacos group 默认统一为 `DEFAULT_GROUP`；`spring.config.import` URL 不重复携带 `group=DEFAULT_GROUP`，由同 profile 文件中的 `spring.cloud.nacos.config.group` / `custom.nacos-group` 控制。只有跨 group 特例才在单条 import URL 显式写 `group`。import 必须与该 profile 的 Nacos 地址放在同一个环境文件中，避免 ConfigData 解析阶段拿不到 `custom.nacos-ip`。
 - 不再用 `group=test` 表达环境。
 - 同名 dataId 在不同 namespace 保存不同环境值。
 

@@ -1,4 +1,4 @@
-# test 环境只负责声明 Nacos 入口；业务配置继续放 Nacos test namespace / DEFAULT_GROUP。
+# test 环境负责声明 Nacos 入口和远程配置 import；业务配置继续放 Nacos test namespace / DEFAULT_GROUP。
 # 当前 dev/test/prod 暂时共用同一套 Nacos 地址和 namespace，后期可通过 NACOS_TEST_* 单独覆盖。
 custom:
   nacos-ip: ${NACOS_TEST_SERVER_ADDR:${NACOS_SERVER_ADDR:172.16.1.39:8848}}
@@ -7,22 +7,33 @@ custom:
 spring:
   cloud:
     nacos:
+      # 服务注册与发现配置，供网关、Dubbo、Admin 和运维观察当前实例。
       discovery:
         server-addr: ${custom.nacos-ip}
         namespace: ${custom.namespace}
         group: ${custom.nacos-group}
+      # 配置中心入口，负责加载本 profile spring.config.import 中列出的远程 YAML。
       config:
         server-addr: ${custom.nacos-ip}
         namespace: ${custom.namespace}
         group: ${custom.nacos-group}
         file-extension: yaml
   config:
+    # import 必须和本 profile 的 Nacos 地址同文件；group 默认使用上面的 custom.nacos-group，只有跨 group 特例才显式写 group。
     import:
-      - "optional:nacos:logging.yml?group=DEFAULT_GROUP&refreshEnabled=true"
-      - "optional:nacos:reuse-configuration.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
-      - "optional:nacos:traffic-governance.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
-      - "optional:nacos:swagger.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
-      - "optional:nacos:dubbo.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
-      - "optional:nacos:ai-agent.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
-      - "optional:nacos:ai-agent-spring.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
-      - "optional:nacos:a2a.yaml?group=DEFAULT_GROUP&refreshEnabled=true"
+      # logging.yml：日志级别与输出格式等公共日志配置。
+      - "optional:nacos:logging.yml?refreshEnabled=true"
+      # reuse-configuration.yaml：共享基础变量，例如模型网关、中间件地址等复用值。
+      - "optional:nacos:reuse-configuration.yaml?refreshEnabled=true"
+      # traffic-governance.yaml：灰度、版本、流量治理等跨服务公共规则。
+      - "optional:nacos:traffic-governance.yaml?refreshEnabled=true"
+      # swagger.yaml：OpenAPI/Swagger 展示公共开关与分组配置。
+      - "optional:nacos:swagger.yaml?refreshEnabled=true"
+      # dubbo.yaml：Dubbo RPC、注册中心和协议配置。
+      - "optional:nacos:dubbo.yaml?refreshEnabled=true"
+      # ai-agent.yaml：AI Agent 执行层业务配置。
+      - "optional:nacos:ai-agent.yaml?refreshEnabled=true"
+      # ai-agent-spring.yaml：AI Agent 执行层 Spring 和模型执行私有基础配置。
+      - "optional:nacos:ai-agent-spring.yaml?refreshEnabled=true"
+      # a2a.yaml：Nacos AI Registry / A2A AgentCard 公共入口配置。
+      - "optional:nacos:a2a.yaml?refreshEnabled=true"
