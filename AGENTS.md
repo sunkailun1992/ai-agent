@@ -19,9 +19,10 @@
 4. `docs/ai-coding/AI_COMMENT_STYLE_GUIDE.md`
 5. `docs/ai-coding/AI_DESIGN_PATTERN_GUIDE.md`
 6. `docs/ai-coding/AI_ENGINEERING_GUARDRAILS.md`
-7. `docs/ai-coding/SECURITY_CODING_SPEC.md`
-8. `docs/ai-coding/NACOS_CONFIG_SPEC.md`：修改 Nacos 配置中心、共享 dataId 或 `application.yml` import 前必读。
-9. 目标 Controller、Service、DTO、配置或测试
+7. `docs/ai-coding/VERSIONING_SPEC.md`：确认 `group = 'com'`、`version = '1.0.0'`、补丁递增和消费者同步规则。
+8. `docs/ai-coding/SECURITY_CODING_SPEC.md`
+9. `docs/ai-coding/NACOS_CONFIG_SPEC.md`：修改 Nacos 配置中心、共享 dataId 或 `application.yml` import 前必读。
+10. 目标 Controller、Service、DTO、配置或测试
 
 ## 项目边界
 

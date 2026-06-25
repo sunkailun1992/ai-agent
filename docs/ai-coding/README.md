@@ -11,8 +11,9 @@
 5. `AI_COMMENT_STYLE_GUIDE.md`
 6. `AI_DESIGN_PATTERN_GUIDE.md`
 7. `AI_ENGINEERING_GUARDRAILS.md`
-8. `SECURITY_CODING_SPEC.md`
-9. 目标 Controller、Service、DTO、配置或测试
+8. `VERSIONING_SPEC.md`
+9. `SECURITY_CODING_SPEC.md`
+10. 目标 Controller、Service、DTO、配置或测试
 
 ## 必读结论
 
@@ -21,3 +22,4 @@
 - 当前不引入 MySQL、MyBatis-Plus、Redis、RabbitMQ、Seata、XXL-JOB、Elasticsearch 或 Qdrant。
 - 主调用链保持 `AgentController -> Agent Service -> AiChatClientProvider`。
 - 模型 Key 和 Provider 配置只放 Nacos 配置中心或环境变量。
+- 项目版本、公共包依赖和后端 Java 新项目基础坐标按 `VERSIONING_SPEC.md` 处理；纯 AI 规范或 README 改动不提升制品版本。
