@@ -7,7 +7,7 @@
 - 项目名称：`ai-agent`
 - 项目类型：AI Agent 执行层服务
 - 技术栈：Java 17、Spring Boot 4、Spring AI 2、Spring Cloud Alibaba、Nacos、Dubbo、Gradle Wrapper、`com:rpc-api`
-- 外部模型：Google Gemini、DeepSeek/OpenAI-compatible
+- 外部模型：Google Gemini、DeepSeek/OpenAI-compatible、通义千问 DashScope/OpenAI-compatible
 - 核心职责：承载可拆分的 Spring AI Agent 执行逻辑，对外提供患者分析、问卷自然追问、问卷答案解释等 Agent 接口
 - 核心风险：模型 Provider 选错、Prompt 污染、外部媒体 URL SSRF、密钥泄露、患者资料越权、日志输出用户隐私、把主 `ai` 服务的会话和问卷状态误搬到 Agent 层
 
@@ -35,7 +35,7 @@
 - `ai-agent` 不直接写 `ai_chat_memory`、`ai_chat_message`、问卷模板、问卷会话、问卷答案、文件对象或用户登录表。
 - Agent 只能返回模型执行结果、结构化候选结果或流式文本；是否保存、推进状态、切换会话、推送外部系统由主服务控制。
 - 模型选择必须通过 `AiChatClientProvider`，业务代码不得直接绑定某个模型供应商。
-- 当前 Provider 允许值为 `google` / `deepseek`；新增 Provider 必须补齐白名单、配置、文档、测试和回滚说明。
+- 当前 Provider 允许值为 `google` / `deepseek` / `qwen`；新增 Provider 必须补齐白名单、配置、文档、测试和回滚说明。
 - Prompt 优先通过 Nacos AI Prompt 管理或 `ai.prompts.*` 配置读取；代码中的长 Prompt 只能作为兜底，不能成为运营主数据。
 - 测试分层按 `docs/ai-coding/TESTING_SPEC.md` 执行；核心 Agent 链路不能只靠 mock 或纯对象 `assertThat`，必须补 Spring Boot 级别测试。
 - 问卷 Agent 必须无状态执行：只理解当前题、已采集答案摘要和本轮输入，不能保存问卷状态或跳题。

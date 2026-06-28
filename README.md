@@ -9,6 +9,7 @@
 - `POST /api/agents/patient-analysis/stream`
 - `POST /api/agents/questionnaire/reply`
 - `POST /api/agents/questionnaire/interpret`
+- `GET /api/agents/model?provider=google|deepseek|qwen`
 
 ## 当前依赖边界
 
@@ -48,6 +49,14 @@
 ai:
   agent:
     provider: ${AI_PROVIDER:google}
+    qwen:
+      base-url: ${QWEN_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+      api-key: ${QWEN_API_KEY:${DASHSCOPE_API_KEY:}}
+      model: ${QWEN_CHAT_MODEL:qwen-plus}
+      temperature: 0.3
+      top-p: 0.8
+      max-tokens: 8192
+      timeout-seconds: 180
   prompts:
     enabled: true
     active-label: stable

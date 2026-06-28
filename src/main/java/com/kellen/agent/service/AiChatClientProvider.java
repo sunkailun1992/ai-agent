@@ -35,13 +35,17 @@ public class AiChatClientProvider {
 
     private static final String PROVIDER_GOOGLE = "google";
     private static final String PROVIDER_DEEPSEEK = "deepseek";
-    private static final Set<String> SUPPORTED_PROVIDERS = Set.of(PROVIDER_GOOGLE, PROVIDER_DEEPSEEK);
+    private static final String PROVIDER_QWEN = "qwen";
+    private static final List<String> SUPPORTED_PROVIDER_LIST = List.of(PROVIDER_GOOGLE, PROVIDER_DEEPSEEK, PROVIDER_QWEN);
+    private static final Set<String> SUPPORTED_PROVIDERS = Set.copyOf(SUPPORTED_PROVIDER_LIST);
 
     private final String defaultProvider;
     private final String googleModel;
     private final String deepSeekModel;
+    private final String qwenModel;
     private final ChatClient googleChatClient;
     private final ChatClient deepSeekChatClient;
+    private final ChatClient qwenChatClient;
 
     public AiChatClientProvider(ChatClient.Builder googleBuilder,
                                 AgentProperties properties,
@@ -50,10 +54,12 @@ public class AiChatClientProvider {
         this.defaultProvider = normalizeProviderOrFallback(properties.provider());
         this.googleModel = googleModel;
         this.deepSeekModel = properties.deepseek().model();
+        this.qwenModel = properties.qwen().model();
         this.googleChatClient = buildGoogleChatClient(googleBuilder, googleMaxOutputTokens, properties.google().thinking());
         this.deepSeekChatClient = ChatClient.builder(buildDeepSeekChatModel(properties.deepseek())).build();
-        log.info("AI Agent Provider 初始化完成: defaultProvider={}, googleModel={}, deepSeekModel={}",
-                this.defaultProvider, this.googleModel, this.deepSeekModel);
+        this.qwenChatClient = ChatClient.builder(buildQwenChatModel(properties.qwen())).build();
+        log.info("AI Agent Provider 初始化完成: defaultProvider={}, googleModel={}, deepSeekModel={}, qwenModel={}",
+                this.defaultProvider, this.googleModel, this.deepSeekModel, this.qwenModel);
     }
 
     /**
@@ -67,6 +73,9 @@ public class AiChatClientProvider {
         if (PROVIDER_DEEPSEEK.equals(provider)) {
             return new CurrentClient(provider, deepSeekModel, deepSeekChatClient);
         }
+        if (PROVIDER_QWEN.equals(provider)) {
+            return new CurrentClient(provider, qwenModel, qwenChatClient);
+        }
         return new CurrentClient(PROVIDER_GOOGLE, googleModel, googleChatClient);
     }
 
@@ -77,6 +86,15 @@ public class AiChatClientProvider {
      */
     public CurrentClient defaultSelection() {
         return selection(null);
+    }
+
+    /**
+     * 返回当前执行层支持的 Provider 列表。
+     *
+     * @return Provider 列表，按页面展示顺序排列。
+     */
+    public List<String> supportedProviders() {
+        return SUPPORTED_PROVIDER_LIST;
     }
 
     private ChatClient buildGoogleChatClient(ChatClient.Builder googleBuilder,
@@ -95,25 +113,67 @@ public class AiChatClientProvider {
 
     private OpenAiChatModel buildDeepSeekChatModel(AgentProperties.DeepSeekProperties deepseek) {
         Duration timeout = Duration.ofSeconds(Math.max(deepseek.timeoutSeconds(), 30));
+        Map<String, Object> extraBody = Map.of("thinking", Map.of("type", deepseek.thinking().enabled() ? "enabled" : "disabled"));
+        return buildOpenAiCompatibleChatModel(
+                deepseek.baseUrl(),
+                deepseek.apiKey(),
+                deepseek.model(),
+                deepseek.temperature(),
+                deepseek.topP(),
+                deepseek.maxTokens(),
+                timeout,
+                normalizeReasoningEffort(deepseek.thinking().reasoningEffort()),
+                extraBody
+        );
+    }
+
+    private OpenAiChatModel buildQwenChatModel(AgentProperties.QwenProperties qwen) {
+        Duration timeout = Duration.ofSeconds(Math.max(qwen.timeoutSeconds(), 30));
+        return buildOpenAiCompatibleChatModel(
+                qwen.baseUrl(),
+                qwen.apiKey(),
+                qwen.model(),
+                qwen.temperature(),
+                qwen.topP(),
+                qwen.maxTokens(),
+                timeout,
+                null,
+                Map.of()
+        );
+    }
+
+    private OpenAiChatModel buildOpenAiCompatibleChatModel(String baseUrl,
+                                                          String apiKey,
+                                                          String model,
+                                                          double temperature,
+                                                          double topP,
+                                                          int maxTokens,
+                                                          Duration timeout,
+                                                          String reasoningEffort,
+                                                          Map<String, Object> extraBody) {
         List<OpenAiHttpClientBuilderCustomizer> httpClientCustomizers = List.of();
-        OpenAIClient openAiClient = OpenAiSetup.setupSyncClient(deepseek.baseUrl(), deepseek.apiKey(),
-                null, null, null, null, false, false, deepseek.model(), timeout, 0,
+        OpenAIClient openAiClient = OpenAiSetup.setupSyncClient(baseUrl, apiKey,
+                null, null, null, null, false, false, model, timeout, 0,
                 null, null, ObservationRegistry.NOOP, null, httpClientCustomizers);
-        OpenAIClientAsync openAiClientAsync = OpenAiSetup.setupAsyncClient(deepseek.baseUrl(), deepseek.apiKey(),
-                null, null, null, null, false, false, deepseek.model(), timeout, 0,
+        OpenAIClientAsync openAiClientAsync = OpenAiSetup.setupAsyncClient(baseUrl, apiKey,
+                null, null, null, null, false, false, model, timeout, 0,
                 null, null, ObservationRegistry.NOOP, null, httpClientCustomizers);
-        OpenAiChatOptions options = OpenAiChatOptions.builder()
-                .baseUrl(deepseek.baseUrl())
-                .apiKey(deepseek.apiKey())
+        OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder()
+                .baseUrl(baseUrl)
+                .apiKey(apiKey)
                 .timeout(timeout)
                 .maxRetries(0)
-                .model(deepseek.model())
-                .temperature(deepseek.temperature())
-                .topP(deepseek.topP())
-                .maxTokens(Math.max(deepseek.maxTokens(), 1024))
-                .reasoningEffort(normalizeReasoningEffort(deepseek.thinking().reasoningEffort()))
-                .extraBody(Map.of("thinking", Map.of("type", deepseek.thinking().enabled() ? "enabled" : "disabled")))
-                .build();
+                .model(model)
+                .temperature(temperature)
+                .topP(topP)
+                .maxTokens(Math.max(maxTokens, 1024));
+        if (hasText(reasoningEffort)) {
+            optionsBuilder.reasoningEffort(reasoningEffort);
+        }
+        if (extraBody != null && !extraBody.isEmpty()) {
+            optionsBuilder.extraBody(extraBody);
+        }
+        OpenAiChatOptions options = optionsBuilder.build();
         return OpenAiChatModel.builder()
                 .openAiClient(openAiClient)
                 .openAiClientAsync(openAiClientAsync)

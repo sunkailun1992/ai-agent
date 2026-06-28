@@ -12,6 +12,7 @@ import com.kellen.agent.service.QuestionnaireAgentService;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,9 +43,9 @@ public class AgentController {
      * @return 默认模型信息。
      */
     @GetMapping(value = "/model", produces = MediaType.APPLICATION_JSON_VALUE)
-    public AgentModelResponse model() {
-        AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.defaultSelection();
-        return new AgentModelResponse(currentClient.provider(), currentClient.model());
+    public AgentModelResponse model(@RequestParam(value = "provider", required = false) String provider) {
+        AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(provider);
+        return new AgentModelResponse(currentClient.provider(), currentClient.model(), aiChatClientProvider.supportedProviders());
     }
 
     /**

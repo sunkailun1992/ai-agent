@@ -31,6 +31,8 @@
 当前 fleet 的服务业务配置和 `{svc}-spring.yaml` 统一使用 `group=DEFAULT_GROUP`。
 
 真实模型 Key 必须来自 Nacos 或环境变量，不得提交到仓库。
+当前 Provider 允许值为 `google`、`deepseek`、`qwen`。`qwen` 通过 DashScope
+OpenAI-compatible 接口接入，密钥放 `ai.agent.qwen.api-key` 或对应环境变量。
 
 `ai-agent.yaml` 中的 Nacos AI Prompt Registry 地址必须引用
 `reuse-configuration.yaml` 的 `${custom.infra-nacos-addr}`，不得重复写
