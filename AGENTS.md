@@ -65,6 +65,7 @@ bash scripts/check-secrets.sh
 - 禁止把模型调用散落到 Controller。
 - 禁止把 Provider 名称、模型名、URL 或密钥写死在业务代码里。
 - 禁止提交真实密钥、数据库密码、Webhook 或生产配置值。
+- 禁止在 `ai-agent` 新增业务表、DDL、Entity、Repository 或 Mapper；确需持久化时回到主 `ai`、`rag` 或独立业务服务，并按目标服务表设计规范处理。
 - 禁止把用户输入直接拼 SQL、文件路径、URL 目标或系统命令。
 - 禁止让 Agent 直接保存问卷答案、修改会话状态或推送外部系统。
 - 禁止提交 `.DS_Store`、本机绝对路径、临时日志和无关构建产物。

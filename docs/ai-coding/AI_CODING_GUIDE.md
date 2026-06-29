@@ -16,6 +16,7 @@
 
 - 不保存用户会话、聊天记忆、问卷状态或审计数据。
 - 不直接写业务库。
+- 不新增业务表、DDL、Entity、Repository 或 Mapper；确需持久化时先拆到主 `ai`、`rag` 或独立业务服务，并按目标服务表设计规范执行。
 - 不引入 DB、ORM、MQ、Seata、Redis、ES、Qdrant 等基础设施。
 - 不替代 Nacos AI Registry；Registry 由 Nacos 管理，主 `ai` 服务消费 AgentCard。
 
