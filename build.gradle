@@ -15,7 +15,7 @@ ext {
             springCloudAlibaba: "2025.1.0.0",
             nacosClient       : "3.2.2",
             dubbo             : "3.3.6",
-            rpcApi            : "1.0.0"
+            rpcApi            : "1.0.5"
     ]
 }
 

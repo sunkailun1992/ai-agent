@@ -2,6 +2,9 @@ package com.kellen.agent.service;
 
 import com.kellen.agent.dto.AgentChatRequest;
 import com.kellen.agent.dto.MediaInput;
+import com.kellen.agent.memory.MemoryAgentClient;
+import com.kellen.rpc.memory.MemoryRetrievalRpcDTO;
+import com.kellen.rpc.memory.MemoryRetrievalRpcRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -20,7 +23,7 @@ import java.util.List;
  * 患者分析 Agent。
  *
  * <p>该 Agent 只负责模型执行。调用方需要提前完成用户鉴权、文件授权、
- * 会话记忆裁剪、RAG 检索和审计落库。</p>
+ * 展示历史和审计落库；患者记忆由本服务通过 ai-memory RPC 召回。</p>
  */
 @Service
 public class PatientAnalysisAgentService {
@@ -36,13 +39,16 @@ public class PatientAnalysisAgentService {
     private final AiChatClientProvider aiChatClientProvider;
     private final AiPromptProvider promptProvider;
     private final AiModelCallObserver modelCallObserver;
+    private final MemoryAgentClient memoryAgentClient;
 
     public PatientAnalysisAgentService(AiChatClientProvider aiChatClientProvider,
                                        AiPromptProvider promptProvider,
-                                       AiModelCallObserver modelCallObserver) {
+                                       AiModelCallObserver modelCallObserver,
+                                       MemoryAgentClient memoryAgentClient) {
         this.aiChatClientProvider = aiChatClientProvider;
         this.promptProvider = promptProvider;
         this.modelCallObserver = modelCallObserver;
+        this.memoryAgentClient = memoryAgentClient;
     }
 
     /**
@@ -84,10 +90,30 @@ public class PatientAnalysisAgentService {
 
     private String userText(AgentChatRequest request, String message) {
         StringBuilder builder = new StringBuilder(message);
+        MemoryRetrievalRpcDTO memory = retrieveMemory(request, message);
+        appendBlock(builder, "患者记忆上下文", memory.getContext());
         appendBlock(builder, "历史上下文", request.historyContext());
         appendBlock(builder, "知识库检索上下文", request.ragContext());
         appendBlock(builder, "本轮补充要求", request.instruction());
         return builder.toString();
+    }
+
+    private MemoryRetrievalRpcDTO retrieveMemory(AgentChatRequest request, String message) {
+        MemoryRetrievalRpcRequest memoryRequest = new MemoryRetrievalRpcRequest();
+        memoryRequest.setCaller(StringUtils.hasText(request.caller()) ? request.caller().trim() : "ai-agent");
+        memoryRequest.setPurpose("patient_analysis");
+        memoryRequest.setTraceId(request.traceId());
+        memoryRequest.setUserId(request.userId());
+        memoryRequest.setTenantId(request.tenantId());
+        memoryRequest.setSourceTenantId(request.sourceTenantId());
+        memoryRequest.setPatientId(request.patientId());
+        memoryRequest.setConversationId(request.conversationId());
+        memoryRequest.setQuery(message);
+        memoryRequest.setMaxItems(8);
+        memoryRequest.setMaxTokens(1000);
+        memoryRequest.setIncludeArchived(false);
+        memoryRequest.setAllowSensitive(false);
+        return memoryAgentClient.retrieve(memoryRequest);
     }
 
     private void appendBlock(StringBuilder builder, String title, String content) {
