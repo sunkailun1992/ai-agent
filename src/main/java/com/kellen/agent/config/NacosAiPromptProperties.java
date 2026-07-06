@@ -15,7 +15,7 @@ public class NacosAiPromptProperties {
     private String label = "stable";
     private String username = "";
     private String password = "";
-    private long cacheTtlSeconds = 60;
+    private long refreshIntervalMillis = 10_000L;
     private String contextPath = "/nacos";
 
     public boolean isEnabled() {
@@ -74,12 +74,12 @@ public class NacosAiPromptProperties {
         this.password = password;
     }
 
-    public long getCacheTtlSeconds() {
-        return cacheTtlSeconds;
+    public long getRefreshIntervalMillis() {
+        return refreshIntervalMillis;
     }
 
-    public void setCacheTtlSeconds(long cacheTtlSeconds) {
-        this.cacheTtlSeconds = cacheTtlSeconds;
+    public void setRefreshIntervalMillis(long refreshIntervalMillis) {
+        this.refreshIntervalMillis = refreshIntervalMillis;
     }
 
     public String getContextPath() {

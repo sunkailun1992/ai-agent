@@ -2,8 +2,8 @@ package com.kellen.agent;
 
 import com.kellen.agent.config.AgentProperties;
 import com.kellen.agent.config.AgentRegistryProperties;
-import com.kellen.agent.config.AiPromptProperties;
 import com.kellen.agent.config.NacosAiPromptProperties;
+import com.kellen.agent.config.PromptSyncProperties;
 import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -20,8 +20,8 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 @ConfigurationPropertiesScan(basePackageClasses = {
         AgentProperties.class,
         AgentRegistryProperties.class,
-        AiPromptProperties.class,
-        NacosAiPromptProperties.class
+        NacosAiPromptProperties.class,
+        PromptSyncProperties.class
 })
 public class AiAgentApplication {
 

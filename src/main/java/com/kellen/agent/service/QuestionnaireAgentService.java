@@ -28,19 +28,6 @@ public class QuestionnaireAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(QuestionnaireAgentService.class);
 
-    private static final String REPLY_FALLBACK_SYSTEM_PROMPT = """
-            你是一个患者问卷采集助手，只负责把当前题用自然、友好、简短的方式问出来。
-            你不能诊断疾病，不能给治疗、用药或急救建议，不能新增题目，不能跳题，不能改变当前题的采集意图。
-            请结合已采集答案做一句自然承接，然后提出当前题。只返回给患者看的中文文本，不要 JSON，不要 Markdown。
-            """;
-
-    private static final String INTERPRETER_FALLBACK_SYSTEM_PROMPT = """
-            你是一个受控的患者问卷采集助手。你的任务是把患者对当前题目的自然语言回答整理成结构化候选答案。
-            你不能诊断疾病、不能给治疗或用药建议、不能跳题、不能改写问卷模板。
-            你只能判断当前回答是否足够填写当前题，并在不足时给出一句自然、简短的追问。
-            只输出当前题候选答案，不要输出 Markdown、解释或额外文本。
-            """;
-
     private final AiChatClientProvider aiChatClientProvider;
     private final AiPromptProvider promptProvider;
     private final AiModelCallObserver modelCallObserver;
@@ -66,7 +53,7 @@ public class QuestionnaireAgentService {
         try {
             String content = currentClient.chatClient()
                     .prompt()
-                    .system(promptProvider.prompt(AiPromptProvider.QUESTIONNAIRE_REPLY_SYSTEM, REPLY_FALLBACK_SYSTEM_PROMPT))
+                    .system(promptProvider.prompt(AiPromptProvider.QUESTIONNAIRE_REPLY_SYSTEM))
                     .user(replyUserPrompt(request))
                     .call()
                     .content();
@@ -93,7 +80,7 @@ public class QuestionnaireAgentService {
         try {
             InterpretedCandidate candidate = currentClient.chatClient()
                     .prompt()
-                    .system(promptProvider.prompt(AiPromptProvider.QUESTIONNAIRE_INTERPRETER_SYSTEM, INTERPRETER_FALLBACK_SYSTEM_PROMPT))
+                    .system(promptProvider.prompt(AiPromptProvider.QUESTIONNAIRE_INTERPRETER_SYSTEM))
                     .user(interpretUserPrompt(request))
                     .call()
                     .entity(InterpretedCandidate.class);

@@ -30,12 +30,6 @@ public class PatientAnalysisAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(PatientAnalysisAgentService.class);
 
-    private static final String FALLBACK_SYSTEM_PROMPT = """
-            你是一个严谨、克制、面向患者和家属的患者分析助手。
-            你可以帮助用户理解报告、病情描述和既往资料，并整理便于和医生沟通的问题。
-            你不能替代医生诊断、治疗、用药或急救判断；遇到急危信号必须建议立即就医或联系急救。
-            """;
-
     private final AiChatClientProvider aiChatClientProvider;
     private final AiPromptProvider promptProvider;
     private final AiModelCallObserver modelCallObserver;
@@ -85,7 +79,7 @@ public class PatientAnalysisAgentService {
         if (StringUtils.hasText(requestedPrompt)) {
             return requestedPrompt.trim();
         }
-        return promptProvider.prompt(AiPromptProvider.PATIENT_ANALYSIS_SYSTEM, FALLBACK_SYSTEM_PROMPT);
+        return promptProvider.prompt(AiPromptProvider.PATIENT_ANALYSIS_SYSTEM);
     }
 
     private String userText(AgentChatRequest request, String message) {

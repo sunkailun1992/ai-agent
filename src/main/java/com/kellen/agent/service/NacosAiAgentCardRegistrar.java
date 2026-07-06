@@ -4,6 +4,7 @@ import com.kellen.agent.config.AgentRegistryProperties;
 import com.alibaba.nacos.api.PropertyKeyConst;
 import com.alibaba.nacos.api.ai.AiFactory;
 import com.alibaba.nacos.api.ai.AiService;
+import com.alibaba.nacos.api.ai.constant.AiConstants;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCapabilities;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentInterface;
@@ -93,7 +94,11 @@ public class NacosAiAgentCardRegistrar {
         try {
             AiService service = AiFactory.createAiService(nacosProperties());
             for (AgentDefinition definition : definitions) {
-                service.releaseAgentCard(buildCard(definition, host, port), text(properties.namespace()), true);
+                service.releaseAgentCard(
+                        buildCard(definition, host, port),
+                        AiConstants.A2a.A2A_ENDPOINT_TYPE_URL,
+                        true
+                );
                 log.info("已发布 AgentCard: agent={}, url={}", definition.agentName(),
                         interfaceUrl(host, port, definition.paths().get(0)));
             }

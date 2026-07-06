@@ -58,15 +58,24 @@ ai:
       max-tokens: 8192
       timeout-seconds: 180
   prompts:
-    enabled: true
-    active-label: stable
     nacos:
+      # Prompt 运行期只从 Nacos AI Prompt Registry 读取；Prompt 正文不再走本地兜底。
       enabled: true
       server-addr: ${custom.infra-nacos-addr}
       namespace: ${custom.namespace}
+      username: ${custom.nacos-username:}
+      password: ${custom.nacos-password:}
+      context-path: ${custom.nacos-context-path:/nacos}
       label: stable
-      username: ${NACOS_USERNAME:}
-      password: ${NACOS_PASSWORD:}
+      refresh-interval-millis: 10000
+    sync:
+      # 启动时按 Nacos Prompt Admin API 字段把 classpath:/prompts/*.prompt.json 发布到 Nacos。
+      enabled: true
+      dry-run: false
+      fail-on-error: false
+      publish-new-version: true
+      # Nacos 开启 Prompt Pipeline 时，启动自动发布必须使用官方 force-publish；如需人工审批可改为 false。
+      force-publish: true
 ```
 
 `custom.infra-nacos-addr` 来自 `reuse-configuration.yaml`，不要在 `ai-agent.yaml` 里重复写 NAS IP。

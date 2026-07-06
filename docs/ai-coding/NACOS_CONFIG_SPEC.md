@@ -39,6 +39,7 @@
 - **`swagger.yaml`**：`swagger.enable` + `swagger.name=${spring.application.name}`；要自定义显示名的服务在自己的 `{svc}.yaml` 覆盖一行。
 - **`aliyun.yaml`**：整棵 `aliyun`（account key + `oss` + `sms` + `dingding` + `liveStreaming`）+ 顶层 `email`。绑定方为 utils 的 `CommonAliyunProperties(prefix="aliyun")`。**凡使用任一 aliyun 能力、或可能触发 utils `@RequestRequired` 钉钉告警的服务都要 import**。
 - **`a2a.yaml`**：A2A 共享值，统一放 `custom.a2a-*`（协议版本、context-path、tenant、provider-org、agent 名契约）+ Nacos 凭据引用。`ai`（消费端 `ai.agent-registry.*`）与 `ai-agent`（生产端 `ai.agent.registry.*`）各自的块**引用** `${custom.a2a-*}`，agent 名两端共用同一变量，保证契约一致。
+- **`ai-agent.yaml` 的 Prompt 配置**：只放 `ai.prompts.nacos.*` 和 `ai.prompts.sync.*` 这类 Registry 入口与同步策略，不放 Prompt 正文。Prompt 正文以 `classpath:/prompts/*.prompt.json` 作为发布源，启动时通过 Nacos Prompt Admin API 按版本、checksum、审计日志和覆盖策略受控发布；运行期通过 Nacos 官方 `AiService.subscribePrompt` 订阅读取，人工在 Nacos 控制台调整 label 或新版本后由订阅刷新感知。
 - **`{svc}.yaml`**：本服务业务键 + 本服务私有 `@ConfigurationProperties` 树。`ai` 私有的 `wechat`（微信小程序，绑定 `CommonWechatProperties(prefix="wechat")`）与 `aliyun.oss` bucket 等收在这里，**不放共享层**。
 - **`{svc}-spring.yaml`**：datasource、`spring.profiles`、discovery override、`spring.ai.*` model、gateway 路由。
 

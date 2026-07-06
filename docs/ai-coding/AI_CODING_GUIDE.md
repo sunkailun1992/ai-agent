@@ -9,7 +9,7 @@
 - `patient-analysis-agent`：患者分析和报告解读流式输出。
 - `questionnaire-agent`：问卷自然提问和答案解释。
 - 使用 Spring AI 2 接入模型。
-- 使用 Nacos 配置中心加载模型参数和 Prompt 配置。
+- 使用 Nacos 配置中心加载模型参数；Prompt 正文由 Nacos AI Prompt Registry 管理。
 - 使用 Nacos 服务发现注册 `ai-agent` 实例。
 
 当前不做：
@@ -37,8 +37,10 @@ OpenAI-compatible 接口接入，密钥放 `ai.agent.qwen.api-key` 或对应环�
 
 `ai-agent.yaml` 中的 Nacos AI Prompt Registry 地址必须引用
 `reuse-configuration.yaml` 的 `${custom.infra-nacos-addr}`，不得重复写
-NAS IP。Prompt 读取优先使用 Nacos 官方 `AiService` SDK，不能手写
-`/v3/client/ai/prompt` 这类 REST 路径。
+NAS IP。Prompt 运行期读取必须使用 Nacos 官方 `AiService.subscribePrompt`
+订阅，不能手写 `/v3/client/ai/prompt` 这类客户端 REST 路径，也不能回退到
+本地 YAML Prompt 正文。启动自动发布使用 Nacos Prompt Admin API，必须保留版本、
+checksum、审计日志、覆盖策略和 `force-publish` 开关。
 
 ## 3. 分层
 
@@ -54,7 +56,7 @@ NAS IP。Prompt 读取优先使用 Nacos 官方 `AiService` SDK，不能手写
 - 模型调用统一经过 `AiChatClientProvider`。
 - Controller 不直接注入 `ChatClient` 或厂商 SDK。
 - `provider` 请求参数只能作为受控覆盖；默认使用 `ai.agent.provider`。
-- Agent 可以保留 Prompt 兜底文案，但不能保存业务状态。
+- Agent 不保留 Prompt 正文本地兜底；注册中心不可读时按业务降级或失败处理，但不能悄悄使用过期本地 Prompt。
 
 ## 5. 安全
 
