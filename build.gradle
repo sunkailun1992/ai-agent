@@ -5,7 +5,14 @@ plugins {
 }
 
 group = "com.ai.agent"
-version = "0.1.6"
+version = "0.1.7"
+
+def privateMavenUrl = providers.gradleProperty("privateMavenUrl")
+        .orElse(providers.environmentVariable("PRIVATE_MAVEN_URL"))
+def privateMavenUsername = providers.gradleProperty("privateMavenUsername")
+        .orElse(providers.environmentVariable("PRIVATE_MAVEN_USERNAME"))
+def privateMavenPassword = providers.gradleProperty("privateMavenPassword")
+        .orElse(providers.environmentVariable("PRIVATE_MAVEN_PASSWORD"))
 
 ext {
     versions = [
@@ -27,6 +34,29 @@ java {
 
 springBoot {
     mainClass = "com.kellen.agent.AiAgentApplication"
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://maven.aliyun.com/repository/public" }
+    if (privateMavenUrl.isPresent()) {
+        maven {
+            name = "privateRelease"
+            url = uri(privateMavenUrl.get())
+            if (privateMavenUsername.isPresent() && privateMavenPassword.isPresent()) {
+                credentials {
+                    username = privateMavenUsername.get()
+                    password = privateMavenPassword.get()
+                }
+            }
+        }
+    }
+}
+
+bootJar {
+    enabled = true
+    archiveFileName = "${project.name}.jar"
 }
 
 dependencyManagement {
