@@ -16,6 +16,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param username           Nacos 鉴权用户名。
  * @param password           Nacos 鉴权密码。
  * @param contextPath        Nacos 上下文路径，默认 {@code /nacos}。
+ * @param publicBaseUrl      完整网关 origin；非空时执行层强制服务间签名。
  * @param advertiseHost      对外暴露的可达地址；留空时自动探测本机 IP，容器内通常即为可达地址。
  * @param advertisePort      对外暴露端口；为 0 时回退到 {@code server.port}。
  * @param supportTls         端点是否走 HTTPS，决定 AgentCard 接口 URL 的协议。
@@ -32,6 +33,7 @@ public record AgentRegistryProperties(
         @DefaultValue("") String username,
         @DefaultValue("") String password,
         @DefaultValue("/nacos") String contextPath,
+        @DefaultValue("") String publicBaseUrl,
         @DefaultValue("") String advertiseHost,
         @DefaultValue("0") int advertisePort,
         @DefaultValue("false") boolean supportTls,
@@ -40,4 +42,38 @@ public record AgentRegistryProperties(
         @DefaultValue("") String tenant,
         @DefaultValue("Orb AI") String providerOrg
 ) {
+    /** 兼容既有内网注册配置和测试的构造入口。 */
+    public AgentRegistryProperties(boolean enabled, String serverAddr, String namespace, String username,
+                                   String password, String contextPath, String advertiseHost, int advertisePort,
+                                   boolean supportTls, String protocolVersion, String cardVersion,
+                                   String tenant, String providerOrg) {
+        this(enabled, serverAddr, namespace, username, password, contextPath, "", advertiseHost,
+                advertisePort, supportTls, protocolVersion, cardVersion, tenant, providerOrg);
+    }
+
+    @org.springframework.boot.context.properties.bind.ConstructorBinding
+    public AgentRegistryProperties {
+        publicBaseUrl = normalizePublicBaseUrl(publicBaseUrl);
+    }
+
+    /** 只允许完整 HTTP(S) origin，避免端口回退和路径拼接改变网关路由。 */
+    private static String normalizePublicBaseUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        try {
+            java.net.URI uri = java.net.URI.create(value.trim());
+            if (!("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
+                    || uri.getHost() == null || uri.getUserInfo() != null
+                    || uri.getQuery() != null || uri.getFragment() != null
+                    || !(uri.getRawPath().isEmpty() || "/".equals(uri.getRawPath()))
+                    || uri.getPort() == 0 || uri.getPort() > 65535) {
+                throw new IllegalArgumentException();
+            }
+            String origin = uri.getScheme() + "://" + uri.getRawAuthority();
+            return origin;
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("ai.agent.registry.public-base-url 必须是完整 HTTP(S) origin");
+        }
+    }
 }

@@ -127,3 +127,5 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 ```bash
 ./gradlew test --no-daemon
 ```
+
+通用安全、隔离与本批验证边界见 [安全与架构说明](docs/security-architecture-sync.md)。

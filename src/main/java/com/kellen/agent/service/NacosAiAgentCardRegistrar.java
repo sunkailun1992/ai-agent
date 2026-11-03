@@ -162,6 +162,9 @@ public class NacosAiAgentCardRegistrar {
     }
 
     private String interfaceUrl(String host, int port, String path) {
+        if (!properties.publicBaseUrl().isEmpty()) {
+            return properties.publicBaseUrl() + path;
+        }
         String scheme = properties.supportTls() ? "https" : "http";
         return scheme + "://" + host + ":" + port + path;
     }

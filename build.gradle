@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ai.agent"
-version = "0.1.7"
+version = "0.1.8"
 
 def privateMavenUrl = providers.gradleProperty("privateMavenUrl")
         .orElse(providers.environmentVariable("PRIVATE_MAVEN_URL"))
@@ -22,7 +22,7 @@ ext {
             springCloudAlibaba: "2025.1.0.0",
             nacosClient       : "3.2.2",
             dubbo             : "3.3.6",
-            rpcApi            : "1.0.5"
+            rpcApi            : "1.0.7"
     ]
 }
 
