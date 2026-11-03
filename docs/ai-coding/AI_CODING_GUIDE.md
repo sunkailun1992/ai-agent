@@ -1,5 +1,9 @@
 # AI Agent 编码规范
 
+## 通用修改入口
+
+先按根 `AGENTS.md`、`BRANCHING_SPEC.md` 核对仓库、WIP、最新 main 与任务授权；版本按 `VERSIONING_SPEC.md` 做进位和占用检查。main/test/preprod 的集成证据、远端核对、短分支清理与 worktree 保护分别记录；纯文档不重复跑 Java 测试或额外提升制品版本。
+
 `ai-agent` 是 AI 患者分析助手的模型执行层服务。它只负责模型调用、Prompt 选择和结构化输出转换；业务状态仍由主 `ai` 服务负责。
 
 ## 1. 项目定位
