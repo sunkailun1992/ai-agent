@@ -1,5 +1,7 @@
 # AI Agent 编码规范入口
 
+涉及 Nacos 配置、模板、引导或渲染/发布工具时，必须同时阅读 [Nacos 配置注释与归类规范](NACOS_COMMENT_SPEC.md)。
+
 本目录维护 `ai-agent` 执行层服务的 AI 编程规范。`archive/` 和 `examples/` 是通用规范模板参考；当前服务是否采用其中数据库、缓存或 MQ 示例，必须以本项目真实依赖为准。
 
 ## 通用规则入口
