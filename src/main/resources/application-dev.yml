@@ -57,9 +57,7 @@ spring:
       - "optional:nacos:swagger.yaml?refreshEnabled=true"
       # dubbo.yaml：Dubbo RPC、注册中心和协议配置。
       - "optional:nacos:dubbo.yaml?refreshEnabled=true"
-      # ai-agent.yaml：AI Agent 执行层业务配置。
-      - "optional:nacos:ai-agent.yaml?refreshEnabled=true"
-      # ai-agent-spring.yaml：AI Agent 执行层 Spring 和模型执行私有基础配置。
+      # ai-agent-spring.yaml：本服务统一配置，包含框架/数据源与服务专属参数；原有共享配置覆盖顺序保持不变。
       - "optional:nacos:ai-agent-spring.yaml?refreshEnabled=true"
       # a2a.yaml：Nacos AI Registry / A2A AgentCard 公共入口配置。
       - "optional:nacos:a2a.yaml?refreshEnabled=true"
