@@ -1,6 +1,8 @@
 package com.kellen.agent.service;
 
 import com.kellen.agent.dto.AgentChatRequest;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 import com.kellen.agent.dto.MediaInput;
 import com.kellen.agent.memory.MemoryAgentClient;
 import com.kellen.rpc.memory.MemoryRetrievalRpcDTO;
@@ -52,20 +54,24 @@ public class PatientAnalysisAgentService {
      * @return 模型输出文本流。
      */
     public Flux<String> stream(AgentChatRequest request) {
+        Context parent = Context.current();
         return Flux.defer(() -> {
-            String message = requiredText(request.message(), "message");
-            AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(request.provider());
-            return modelCallObserver.observeStream(currentClient.provider(), currentClient.model(), "patient_analysis", () -> {
-                ChatClient.ChatClientRequestSpec spec = currentClient.chatClient()
-                        .prompt()
-                        .system(systemPrompt(request.systemPrompt()))
-                        .user(user -> {
-                            user.text(userText(request, message));
-                            media(request.effectiveAttachments()).forEach(item -> user.media(item.mimeType(), item.resource()));
-                        });
-                return spec.stream().content();
-            }).doOnError(exception -> log.warn("患者分析 Agent 调用失败，已返回固定提示"))
-                    .onErrorResume(exception -> Flux.just("\n[AI Agent 调用失败] 请稍后重试"));
+            // 订阅线程可能已属于另一请求，observer 必须在原入口 Context 下装配后立即恢复。
+            try (Scope ignored = parent.makeCurrent()) {
+                String message = requiredText(request.message(), "message");
+                AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(request.provider());
+                return modelCallObserver.observeStream(currentClient.provider(), currentClient.model(), "patient_analysis", () -> {
+                    ChatClient.ChatClientRequestSpec spec = currentClient.chatClient()
+                            .prompt()
+                            .system(systemPrompt(request.systemPrompt()))
+                            .user(user -> {
+                                user.text(userText(request, message));
+                                media(request.effectiveAttachments()).forEach(item -> user.media(item.mimeType(), item.resource()));
+                            });
+                    return spec.stream().content();
+                }).doOnError(exception -> log.warn("患者分析 Agent 调用失败，已返回固定提示"))
+                        .onErrorResume(exception -> Flux.just("\n[AI Agent 调用失败] 请稍后重试"));
+            }
         });
     }
 
