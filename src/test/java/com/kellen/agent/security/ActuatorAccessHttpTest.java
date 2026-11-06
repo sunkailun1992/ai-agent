@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 内网直连实例端口时，除 health 外的 Actuator 端点必须携带令牌。
  *
- * <p>配置复现最危险的 Nacos 取值：端点全部暴露（与共享 {@code admin.yaml} 相同）。用真实应用上下文与真实 HTTP，
+ * <p>配置复现最危险的 Nacos 取值：端点全部暴露（模拟错误的全端点暴露配置）。用真实应用上下文与真实 HTTP，
  * 覆盖 Boot、Spring Cloud 与 Nacos 在本服务实际注册的全部端点，不调用模型。另挂测试专用的通配端点和一个
  * 映射在端点根路径下的独立 Servlet，验证点段与 Servlet 映射都不能绕开保护范围。</p>
  */

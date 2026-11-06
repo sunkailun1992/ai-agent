@@ -55,23 +55,17 @@ public class PatientAnalysisAgentService {
         return Flux.defer(() -> {
             String message = requiredText(request.message(), "message");
             AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(request.provider());
-            long startedAt = modelCallObserver.start();
-            ChatClient.ChatClientRequestSpec spec = currentClient.chatClient()
-                    .prompt()
-                    .system(systemPrompt(request.systemPrompt()))
-                    .user(user -> {
-                        user.text(userText(request, message));
-                        media(request.effectiveAttachments()).forEach(item -> user.media(item.mimeType(), item.resource()));
-                    });
-            return spec.stream()
-                    .content()
-                    .doOnComplete(() -> modelCallObserver.success(currentClient.provider(), currentClient.model(), "patient_analysis", startedAt))
-                    .doOnError(exception -> {
-                        modelCallObserver.failure(currentClient.provider(), currentClient.model(), "patient_analysis", startedAt);
-                        log.warn("患者分析 Agent 调用失败: {}", exception.getMessage());
-                    })
-                    .doOnCancel(() -> modelCallObserver.cancelled(currentClient.provider(), currentClient.model(), "patient_analysis", startedAt))
-                    .onErrorResume(exception -> Flux.just("\n[AI Agent 调用失败] " + safeMessage(exception)));
+            return modelCallObserver.observeStream(currentClient.provider(), currentClient.model(), "patient_analysis", () -> {
+                ChatClient.ChatClientRequestSpec spec = currentClient.chatClient()
+                        .prompt()
+                        .system(systemPrompt(request.systemPrompt()))
+                        .user(user -> {
+                            user.text(userText(request, message));
+                            media(request.effectiveAttachments()).forEach(item -> user.media(item.mimeType(), item.resource()));
+                        });
+                return spec.stream().content();
+            }).doOnError(exception -> log.warn("患者分析 Agent 调用失败，已返回固定提示"))
+                    .onErrorResume(exception -> Flux.just("\n[AI Agent 调用失败] 请稍后重试"));
         });
     }
 
@@ -145,11 +139,6 @@ public class PatientAnalysisAgentService {
             throw new IllegalArgumentException(field + " must not be blank");
         }
         return value.trim();
-    }
-
-    private String safeMessage(Throwable throwable) {
-        String message = throwable.getMessage();
-        return StringUtils.hasText(message) ? message : throwable.getClass().getSimpleName();
     }
 
     private record AgentMedia(MimeType mimeType, UrlResource resource) {

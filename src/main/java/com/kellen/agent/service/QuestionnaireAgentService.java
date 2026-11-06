@@ -49,20 +49,18 @@ public class QuestionnaireAgentService {
      */
     public QuestionnaireReplyResponse reply(QuestionnaireReplyRequest request) {
         AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(request.provider());
-        long startedAt = modelCallObserver.start();
         try {
-            String content = currentClient.chatClient()
+            String content = modelCallObserver.observeCall(currentClient.provider(), currentClient.model(), "questionnaire_reply",
+                    () -> currentClient.chatClient()
                     .prompt()
                     .system(promptProvider.prompt(AiPromptProvider.QUESTIONNAIRE_REPLY_SYSTEM))
                     .user(replyUserPrompt(request))
                     .call()
-                    .content();
-            modelCallObserver.success(currentClient.provider(), currentClient.model(), "questionnaire_reply", startedAt);
+                    .content());
             String reply = StringUtils.hasText(content) ? content.trim() : fallbackReply(request.currentQuestion(), request.resumed());
             return new QuestionnaireReplyResponse(currentClient.provider(), currentClient.model(), reply);
         } catch (RuntimeException exception) {
-            modelCallObserver.failure(currentClient.provider(), currentClient.model(), "questionnaire_reply", startedAt);
-            log.warn("问卷自然提问 Agent 调用失败，已回退题面: {}", exception.getMessage());
+            log.warn("问卷自然提问 Agent 调用失败，已回退题面");
             return new QuestionnaireReplyResponse(currentClient.provider(), currentClient.model(),
                     fallbackReply(request.currentQuestion(), request.resumed()));
         }
@@ -76,19 +74,17 @@ public class QuestionnaireAgentService {
      */
     public QuestionnaireInterpretResponse interpret(QuestionnaireInterpretRequest request) {
         AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(request.provider());
-        long startedAt = modelCallObserver.start();
         try {
-            InterpretedCandidate candidate = currentClient.chatClient()
+            InterpretedCandidate candidate = modelCallObserver.observeCall(currentClient.provider(), currentClient.model(), "questionnaire_interpret",
+                    () -> currentClient.chatClient()
                     .prompt()
                     .system(promptProvider.prompt(AiPromptProvider.QUESTIONNAIRE_INTERPRETER_SYSTEM))
                     .user(interpretUserPrompt(request))
                     .call()
-                    .entity(InterpretedCandidate.class);
-            modelCallObserver.success(currentClient.provider(), currentClient.model(), "questionnaire_interpret", startedAt);
+                    .entity(InterpretedCandidate.class));
             return normalize(currentClient, candidate, request);
         } catch (RuntimeException exception) {
-            modelCallObserver.failure(currentClient.provider(), currentClient.model(), "questionnaire_interpret", startedAt);
-            log.warn("问卷答案解释 Agent 调用失败，已返回追问: {}", exception.getMessage());
+            log.warn("问卷答案解释 Agent 调用失败，已返回追问");
             return followUp(currentClient, request, retryPrompt(request.currentQuestion()));
         }
     }

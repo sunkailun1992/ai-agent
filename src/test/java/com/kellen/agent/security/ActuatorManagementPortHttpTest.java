@@ -48,6 +48,14 @@ class ActuatorManagementPortHttpTest extends ActuatorHttpTestSupport {
         assertThat(statusOf(managementPort, "POST", "/manage/actuator/refresh", null)).isEqualTo(401);
     }
 
+    @Test void prometheusRequiresValidToken() throws Exception {
+        assertThat(get(managementPort, "/manage/actuator/prometheus", null).statusCode()).isEqualTo(401);
+        assertThat(get(managementPort, "/manage/actuator/prometheus", "wrong").statusCode()).isEqualTo(401);
+        var response = get(managementPort, "/manage/actuator/prometheus", TOKEN);
+        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.body()).contains("jvm_memory_used_bytes");
+    }
+
     @Test void managementPortAllowsConfiguredToken() throws Exception {
         assertThat(get(managementPort, "/manage/actuator/env", TOKEN).statusCode()).isEqualTo(200);
     }

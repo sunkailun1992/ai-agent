@@ -90,7 +90,7 @@ public class ActuatorAccessFilter extends OncePerRequestFilter {
     public void verifyManagementServerProtected() {
         if (!managementServer && ManagementPortType.get(environment) == ManagementPortType.DIFFERENT
                 && !managementServerBridged.get()) {
-            log.error("独立管理端口上的 Actuator 未挂上令牌保护：请用 java -jar 启动，确认 classpath 上有 "
+            throw new IllegalStateException("独立管理端口上的 Actuator 未挂上令牌保护：请用 java -jar 启动，确认 classpath 上有 "
                     + "META-INF/spring/org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration.imports");
         }
     }

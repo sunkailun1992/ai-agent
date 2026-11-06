@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ai.agent"
-version = "0.2.0"
+version = "0.2.1"
 
 def privateMavenUrl = providers.gradleProperty("privateMavenUrl")
         .orElse(providers.environmentVariable("PRIVATE_MAVEN_URL"))
@@ -33,6 +33,7 @@ java {
 }
 
 springBoot {
+    buildInfo()
     mainClass = "com.kellen.agent.AiAgentApplication"
 }
 
@@ -61,6 +62,7 @@ bootJar {
 
 dependencyManagement {
     imports {
+        mavenBom "io.opentelemetry:opentelemetry-bom:1.59.0"
         mavenBom "org.springframework.cloud:spring-cloud-dependencies:${versions.springCloud}"
         mavenBom "com.alibaba.cloud:spring-cloud-alibaba-dependencies:${versions.springCloudAlibaba}"
         mavenBom "org.springframework.ai:spring-ai-bom:${versions.springAi}"
@@ -71,6 +73,9 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-web"
     implementation "org.springframework.boot:spring-boot-starter-webflux"
     implementation "org.springframework.boot:spring-boot-starter-actuator"
+    implementation "io.micrometer:micrometer-registry-prometheus"
+    implementation "io.opentelemetry:opentelemetry-api:1.59.0"
+    testImplementation "io.opentelemetry:opentelemetry-sdk-testing:1.59.0"
     implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery"
     implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config"
     implementation "com.alibaba.nacos:nacos-client:${versions.nacosClient}"

@@ -10,18 +10,19 @@ import org.springframework.boot.webmvc.autoconfigure.DispatcherServletPath;
 import org.springframework.mock.env.MockEnvironment;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * 独立管理端口的保护靠 jar 根目录下的 imports 文件挂进子容器；以展开的 classpath 启动等情况读不到它时，
- * 管理端口会静默失去保护，启动完成后必须留下错误日志。
+ * 管理端口会静默失去保护，启动时必须抛错阻止未保护的实例继续服务。
  */
 @ExtendWith(OutputCaptureExtension.class)
 class ActuatorAccessFilterStartupCheckTest {
     private static final String MISSING_BRIDGE = "独立管理端口上的 Actuator 未挂上令牌保护";
 
     @Test void reportsUnprotectedManagementPort(CapturedOutput output) {
-        filter("8081").verifyManagementServerProtected();
-        assertThat(output).contains(MISSING_BRIDGE);
+        assertThatThrownBy(() -> filter("8081").verifyManagementServerProtected())
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining(MISSING_BRIDGE);
     }
 
     @Test void staysQuietOnceManagementPortIsBridged(CapturedOutput output) {

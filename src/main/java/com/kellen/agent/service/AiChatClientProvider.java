@@ -39,6 +39,7 @@ public class AiChatClientProvider {
     private static final List<String> SUPPORTED_PROVIDER_LIST = List.of(PROVIDER_GOOGLE, PROVIDER_DEEPSEEK, PROVIDER_QWEN);
     private static final Set<String> SUPPORTED_PROVIDERS = Set.copyOf(SUPPORTED_PROVIDER_LIST);
 
+    private final ObservationRegistry observationRegistry;
     private final String defaultProvider;
     private final String googleModel;
     private final String deepSeekModel;
@@ -49,8 +50,10 @@ public class AiChatClientProvider {
 
     public AiChatClientProvider(ChatClient.Builder googleBuilder,
                                 AgentProperties properties,
+                                ObservationRegistry observationRegistry,
                                 @Value("${spring.ai.google.genai.chat.options.model:gemini-3.1-flash-lite}") String googleModel,
                                 @Value("${spring.ai.google.genai.chat.options.maxOutputTokens:8192}") int googleMaxOutputTokens) {
+        this.observationRegistry = observationRegistry;
         this.defaultProvider = normalizeProviderOrFallback(properties.provider());
         this.googleModel = googleModel;
         this.deepSeekModel = properties.deepseek().model();
@@ -154,10 +157,10 @@ public class AiChatClientProvider {
         List<OpenAiHttpClientBuilderCustomizer> httpClientCustomizers = List.of();
         OpenAIClient openAiClient = OpenAiSetup.setupSyncClient(baseUrl, apiKey,
                 null, null, null, null, false, false, model, timeout, 0,
-                null, null, ObservationRegistry.NOOP, null, httpClientCustomizers);
+                null, null, observationRegistry, null, httpClientCustomizers);
         OpenAIClientAsync openAiClientAsync = OpenAiSetup.setupAsyncClient(baseUrl, apiKey,
                 null, null, null, null, false, false, model, timeout, 0,
-                null, null, ObservationRegistry.NOOP, null, httpClientCustomizers);
+                null, null, observationRegistry, null, httpClientCustomizers);
         OpenAiChatOptions.Builder optionsBuilder = OpenAiChatOptions.builder()
                 .baseUrl(baseUrl)
                 .apiKey(apiKey)
@@ -178,6 +181,7 @@ public class AiChatClientProvider {
                 .openAiClient(openAiClient)
                 .openAiClientAsync(openAiClientAsync)
                 .options(options)
+                .observationRegistry(observationRegistry)
                 .build();
     }
 

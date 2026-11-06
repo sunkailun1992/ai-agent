@@ -26,7 +26,7 @@
 - Spring Web / WebFlux
 - Spring AI 2
 - Spring Cloud Alibaba Nacos discovery/config
-- Actuator
+- Actuator、Micrometer Prometheus registry、OpenTelemetry API（SDK 由统一 Java agent 提供）
 
 不保留：
 
@@ -137,3 +137,7 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 ```
 
 通用安全、隔离与本批验证边界见 [安全与架构说明](docs/security-architecture-sync.md)。
+
+## 指标与链路观测
+
+管理端点使用既有运维令牌，模型 registry 与 SSE 终态观测、内部采集要求和回滚说明见 [监控采集与回滚](docs/fleet-observability.md)。
