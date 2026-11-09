@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ai.agent"
-version = "0.2.3"
+version = "0.2.4"
 
 def privateMavenUrl = providers.gradleProperty("privateMavenUrl")
         .orElse(providers.environmentVariable("PRIVATE_MAVEN_URL"))
@@ -57,6 +57,7 @@ repositories {
 
 bootJar {
     enabled = true
+    inputs.property('applicationVersion', project.version) // 固定包名时，版本变化也必须触发重新打包。
     archiveFileName = "${project.name}.jar"
 }
 
@@ -75,7 +76,7 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-actuator"
     implementation "io.micrometer:micrometer-registry-prometheus"
     implementation "io.opentelemetry:opentelemetry-api:1.59.0"
-    implementation "com:fleet-observability:0.1.0" // 仅引入安全 HTTP 终态采集，不引入重型 utils。
+    implementation "com:fleet-observability:0.1.1" // 安全 HTTP 终态和固定 ECS 字段；不引入重型 utils。
     testImplementation "io.opentelemetry:opentelemetry-sdk-testing:1.59.0"
     implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery"
     implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config"

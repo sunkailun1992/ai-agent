@@ -2,7 +2,11 @@
 
 ## 需求与边界
 
-本批版本为 `0.2.3`。使用 Micrometer Prometheus registry 提供指标，OpenTelemetry API 1.59.0 仅消费统一启动入口注入的 Java agent；应用不建立 SDK，也不依赖重型 utils。Java agent 的指标与日志 exporter 保持关闭（`OTEL_METRICS_EXPORTER=none`、`OTEL_LOGS_EXPORTER=none`），日志继续走共享 ES 配置。生产 classpath 不引入测试 SDK。
+本批版本为 `0.2.4`，精确消费轻量 `com:fleet-observability:0.1.1`。使用 Micrometer Prometheus registry 提供指标，OpenTelemetry API 1.59.0 仅消费统一启动入口注入的 Java agent；应用不建立 SDK，也不依赖重型 utils。Java agent 的指标与日志 exporter 保持关闭（`OTEL_METRICS_EXPORTER=none`、`OTEL_LOGS_EXPORTER=none`），日志继续走共享 ES 配置。生产 classpath 不引入测试 SDK。
+
+共享日志配置必须配套 `logging.structured.json.context.include=false`：关闭 Boot 默认自由 MDC/KVP 合流，再由轻量库固定成员 SPI 输出白名单。显式业务 KVP 优先，MDC 仅回退合法 trace/span 身份，同名键不会使整条 ECS 编码失败。AI 用量继续保持数字/布尔类型；未知 MDC、自由 message、异常 message/堆栈不输出，普通框架错误仅生成安全类名摘要。
+
+固定部署包名为 `ai-agent.jar`，`applicationVersion` 纳入 `bootJar` 增量输入；版本变化必须重新打包并读回真实 Manifest。IDEA 日常仍从原生 Spring Boot 主类绿叶 Run/Debug，不要求改用 Gradle 启动。
 
 指标固定维度为 `application=ai-agent`、构建产物 `version`、`environment=github-dev`；部署环境可通过 `observability.environment` 覆盖。业务会话 ID、患者、租户、用户、trace ID、URL、prompt 和正文不得作为标签。
 
@@ -32,4 +36,4 @@ SSE 安全日志合同测试直接加载同级 `utils/ops/github-dev/nacos/DEFAU
 
 源码验证执行 `./gradlew clean test bootJar --no-daemon` 与 `STRICT_SECRET_SCAN=1 bash scripts/check-secrets.sh`。测试使用合成令牌与本机临时监听，不连接真实 Nacos、模型供应商或监控服务器；端到端采集、真实 Dubbo/HTTP trace、ES 关联和生产资源影响仍需部署后独立验收。
 
-本批没有发布制品、推送、部署或修改远程 Nacos。回滚先停用采集目标与 Java agent 启动参数，再回退服务制品及其配套配置；关闭监控不能放宽现有管理令牌或公网阻断。历史 Spring Boot Admin/Zipkin 已退役，当前 profiles 与配置分类不再导入这两项，不恢复旧配置补采集。
+源码测试、实际 Jar Manifest/轻量依赖、远端发布和运行态采集分别验收。回滚先停用采集目标与 Java agent 启动参数，再成套回退服务制品及日志配置；关闭监控不能放宽现有管理令牌或公网阻断。历史 Spring Boot Admin/Zipkin 已退役，当前 profiles 与配置分类不再导入这两项，不恢复旧配置补采集。
