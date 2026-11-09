@@ -25,7 +25,12 @@ public class AiPromptProvider {
      * @return 最终 Prompt。
      */
     public String prompt(String key) {
-        return registryClient.prompt(key)
+        return snapshot(key).template();
+    }
+
+    /** 版本与正文从同一次订阅读取得到，防止热刷新时标签串配。 */
+    public AiPromptSnapshot snapshot(String key) {
+        return registryClient.snapshot(key)
                 .orElseThrow(() -> new IllegalStateException("Nacos AI Prompt 未发布或不可读取: " + key));
     }
 }

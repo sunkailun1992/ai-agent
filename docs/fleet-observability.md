@@ -2,7 +2,7 @@
 
 ## 需求与边界
 
-本批版本为 `0.2.2`。使用 Micrometer Prometheus registry 提供指标，OpenTelemetry API 1.59.0 仅消费统一启动入口注入的 Java agent；应用不建立 SDK，也不依赖重型 utils。Java agent 的指标与日志 exporter 保持关闭（`OTEL_METRICS_EXPORTER=none`、`OTEL_LOGS_EXPORTER=none`），日志继续走共享 ES 配置。生产 classpath 不引入测试 SDK。
+本批版本为 `0.2.3`。使用 Micrometer Prometheus registry 提供指标，OpenTelemetry API 1.59.0 仅消费统一启动入口注入的 Java agent；应用不建立 SDK，也不依赖重型 utils。Java agent 的指标与日志 exporter 保持关闭（`OTEL_METRICS_EXPORTER=none`、`OTEL_LOGS_EXPORTER=none`），日志继续走共享 ES 配置。生产 classpath 不引入测试 SDK。
 
 指标固定维度为 `application=ai-agent`、构建产物 `version`、`environment=github-dev`；部署环境可通过 `observability.environment` 覆盖。业务会话 ID、患者、租户、用户、trace ID、URL、prompt 和正文不得作为标签。
 
@@ -16,7 +16,15 @@
 
 沿用 `ActuatorAccessFilter` 与独立管理子容器桥接，health 保留匿名探活，其余已配置端点需要运维令牌。没有新增敏感管理端点暴露；独立管理端口桥接缺失时抛错使启动失败，不能仅记录日志后继续运行。
 
-OpenAI-compatible 模型使用应用的 `ObservationRegistry`。患者分析流和问卷调用增加 `ai.agent.execution` span，只携带 provider、固定 operation、终态 outcome。SSE 成功、失败、取消分别保留 `ai.agent.model.call` timer；模型错误经过固定文案降级后仍计作 failure。原始异常、prompt、回包和业务会话 ID 不进入自定义 span，线程上下文在装配与订阅后恢复。DTO 的 `traceId` 是既有业务关联字段，不作为 OTel trace ID，不更改契约。
+OpenAI-compatible 模型使用应用的 `ObservationRegistry`。患者分析流和问卷调用保留 `ai.agent.execution` 整轮 span（`gen_ai.operation.name=invoke_agent`）。Prompt 解析、请求组装和 `memory.retrieve` 在整轮父 span 内完成；供应商实际同步调用或流式源订阅至终态使用独立的 `ai.model.call` 子 span（`gen_ai.operation.name=chat`）。模型时长不包含前置 Prompt/记忆准备；用量、模型响应元数据和 `event=ai.model.call` 日志只归属于模型子 span，避免父子重复计数。Prompt 不可用时仅终结整轮失败，不伪造未发生的模型调用。`memory.retrieve` 是模型调用的同级固定编排步骤，不称为模型自主 tool calling。DTO 的 `traceId` 仍是既有业务关联字段，不作为 OTel trace ID，不更改请求契约。
+
+模型子 span 记录 `gen_ai.provider.name/request.model/response.model/response.finish_reasons`，以及有限的 `fleet.ai.*` Prompt 来源/实际版本、用量可用性、公开推理输出/摘要存在性。并发冷流每次订阅分别创建整轮/模型 span，成功、错误和取消均只终结一次；日志输出临时进入模型子 span 后恢复原线程上下文。
+
+患者流通过 `ChatResponse`、问卷结构化调用通过 `responseEntity` 保留供应商报告用量，业务文本/候选结果保持原协议。累计 usage 只保留最后一次报告，不逐流片累加；未报告保持未知，不伪造0。Google output 为实际报告的 candidates + thoughts；OpenAI-compatible completion 已包含 reasoning，不重复加总。`gen_ai.usage.reasoning.output_tokens` 是 output 的子集。取消或失败时已报告用量不冒充完整终态用量；`fleet.ai.usage.final` 仅在成功完成并确有用量报告时为 true。
+
+默认只写 `event=ai.model.call` 与安全 `summary`、`ai_operation/provider/model/prompt_key/prompt_version`、实际报告的 token、用量可用性、公开推理存在性及字符数摘要。不写 `ai_input/ai_output`、Prompt、回答、原始异常、任意 nativeUsage 或 thought signatures。供应商公开摘要/公开 reasoning 输出分别标识，不能声称可取得未公开的内部思维。正文诊断由共享轻量观测库的受信服务器开关 `fleet.observability.ai-content-enabled=false` 与安全投影接口统一控制；本服务在该适配接入并验收前始终省略正文，不能由请求头开启，也不能截取自由正文代替投影。
+
+Nacos Prompt 的正文与解析版本保存在同一不可变快照，热刷新一起替换；配置的 label 不冒充实际版本。调用方传入 Prompt 时明确 `source=caller/version=unknown`，调用方自己的真实版本在主服务编排 span 上记录。SSE 成功、失败、取消各终结一次观测，模型错误经过固定文案降级后仍计作 failure；并发订阅独立保存元数据与父上下文。日志或用量元数据解析失败不改变模型响应。
 
 ## 验收与回滚
 

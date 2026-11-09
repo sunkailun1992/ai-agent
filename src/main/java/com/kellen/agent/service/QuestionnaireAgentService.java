@@ -50,13 +50,15 @@ public class QuestionnaireAgentService {
     public QuestionnaireReplyResponse reply(QuestionnaireReplyRequest request) {
         AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(request.provider());
         try {
-            String content = modelCallObserver.observeCall(currentClient.provider(), currentClient.model(), "questionnaire_reply",
-                    () -> currentClient.chatClient()
+            var response = modelCallObserver.observePromptCall(currentClient.provider(), currentClient.model(), "questionnaire_reply",
+                    () -> promptProvider.snapshot(AiPromptProvider.QUESTIONNAIRE_REPLY_SYSTEM), prompt -> {
+                    var prepared = currentClient.chatClient()
                     .prompt()
-                    .system(promptProvider.prompt(AiPromptProvider.QUESTIONNAIRE_REPLY_SYSTEM))
-                    .user(replyUserPrompt(request))
-                    .call()
-                    .content());
+                    .system(prompt.template())
+                    .user(replyUserPrompt(request));
+                    return () -> prepared.call().chatResponse();
+                });
+            String content = response == null || response.getResult() == null ? null : response.getResult().getOutput().getText();
             String reply = StringUtils.hasText(content) ? content.trim() : fallbackReply(request.currentQuestion(), request.resumed());
             return new QuestionnaireReplyResponse(currentClient.provider(), currentClient.model(), reply);
         } catch (RuntimeException exception) {
@@ -75,14 +77,15 @@ public class QuestionnaireAgentService {
     public QuestionnaireInterpretResponse interpret(QuestionnaireInterpretRequest request) {
         AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(request.provider());
         try {
-            InterpretedCandidate candidate = modelCallObserver.observeCall(currentClient.provider(), currentClient.model(), "questionnaire_interpret",
-                    () -> currentClient.chatClient()
+            var response = modelCallObserver.observePromptCall(currentClient.provider(), currentClient.model(), "questionnaire_interpret",
+                    () -> promptProvider.snapshot(AiPromptProvider.QUESTIONNAIRE_INTERPRETER_SYSTEM), prompt -> {
+                    var prepared = currentClient.chatClient()
                     .prompt()
-                    .system(promptProvider.prompt(AiPromptProvider.QUESTIONNAIRE_INTERPRETER_SYSTEM))
-                    .user(interpretUserPrompt(request))
-                    .call()
-                    .entity(InterpretedCandidate.class));
-            return normalize(currentClient, candidate, request);
+                    .system(prompt.template())
+                    .user(interpretUserPrompt(request));
+                    return () -> prepared.call().responseEntity(InterpretedCandidate.class);
+                });
+            return normalize(currentClient, response == null ? null : response.getEntity(), request);
         } catch (RuntimeException exception) {
             log.warn("问卷答案解释 Agent 调用失败，已返回追问");
             return followUp(currentClient, request, retryPrompt(request.currentQuestion()));

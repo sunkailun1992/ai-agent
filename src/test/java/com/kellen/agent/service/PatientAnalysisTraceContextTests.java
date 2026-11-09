@@ -17,6 +17,8 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
+import org.springframework.ai.chat.metadata.ChatResponseMetadata;
+import org.springframework.ai.chat.metadata.DefaultUsage;
 import org.springframework.ai.chat.prompt.Prompt;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -54,7 +56,7 @@ class PatientAnalysisTraceContextTests {
             assertThat(stream.collectList().block()).containsExactly("synthetic-output");
             assertThat(Span.current()).isSameAs(subscriberParent);
         }
-        var execution = exporter.getFinishedSpanItems().get(0);
+        var execution = executions().get(0);
         assertThat(execution.getParentSpanId()).isEqualTo(assemblyParent.getSpanContext().getSpanId());
         assertThat(execution.getTraceId()).isEqualTo(assemblyParent.getSpanContext().getTraceId());
         assertThat(Span.current().getSpanContext().isValid()).isFalse();
@@ -92,10 +94,10 @@ class PatientAnalysisTraceContextTests {
         model.output = Flux.never();
         var subscription = assembleUnder(parent).subscribe();
         subscription.dispose();
-        await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> assertThat(exporter.getFinishedSpanItems()).hasSize(3));
-        assertThat(exporter.getFinishedSpanItems()).extracting(span -> span.getAttributes().get(AttributeKey.stringKey("outcome")))
+        await().atMost(Duration.ofSeconds(3)).untilAsserted(() -> assertThat(executions()).hasSize(3));
+        assertThat(executions()).extracting(span -> span.getAttributes().get(AttributeKey.stringKey("outcome")))
                 .containsExactly("success", "failure", "cancelled");
-        for (var execution : exporter.getFinishedSpanItems()) {
+        for (var execution : executions()) {
             assertThat(execution.getParentSpanId()).isEqualTo(parent.getSpanContext().getSpanId());
             assertThat(execution.getTraceId()).isEqualTo(parent.getSpanContext().getTraceId());
         }
@@ -106,6 +108,61 @@ class PatientAnalysisTraceContextTests {
         parent.end();
     }
 
+    @Test void actualChatClientKeepsUsageAndMemoryStepBelowTheExecution() {
+        model.output = Flux.just(new ChatResponse(List.of(new Generation(new AssistantMessage("synthetic-output"))),
+                ChatResponseMetadata.builder().model("reported-model").usage(new DefaultUsage(7, 13, 20)).build()));
+        Span parent = telemetry.get("test").spanBuilder("entry").startSpan();
+        assertThat(assembleUnder(parent).collectList().block()).containsExactly("synthetic-output");
+        var execution = executions().get(0);
+        var modelCall = exporter.getFinishedSpanItems().stream().filter(span -> span.getName().equals("ai.model.call"))
+                .findFirst().orElseThrow();
+        assertThat(modelCall.getParentSpanId()).isEqualTo(execution.getSpanId());
+        assertThat(modelCall.getAttributes().get(AttributeKey.longKey("gen_ai.usage.input_tokens"))).isEqualTo(7L);
+        assertThat(modelCall.getAttributes().get(AttributeKey.longKey("gen_ai.usage.output_tokens"))).isEqualTo(13L);
+        assertThat(execution.getAttributes().get(AttributeKey.longKey("gen_ai.usage.input_tokens"))).isNull();
+        assertThat(model.subscribedSpanId).isEqualTo(modelCall.getSpanId());
+        var memory = exporter.getFinishedSpanItems().stream().filter(span -> span.getName().equals("memory.retrieve"))
+                .findFirst().orElseThrow();
+        assertThat(memory.getParentSpanId()).isEqualTo(execution.getSpanId());
+        assertThat(memory.getTraceId()).isEqualTo(parent.getSpanContext().getTraceId());
+        parent.end();
+    }
+
+    @Test void usageOnlyEmptyTextDoesNotEmitAFrameWhileWhitespaceAndUsageSurvive() {
+        model.output = Flux.just(
+                new ChatResponse(List.of(new Generation(new AssistantMessage("synthetic-output")))),
+                new ChatResponse(List.of(new Generation(new AssistantMessage(" ")))),
+                new ChatResponse(List.of(new Generation(new AssistantMessage(""))),
+                        ChatResponseMetadata.builder().usage(new DefaultUsage(7, 13, 20)).build()));
+        Span parent = telemetry.get("test").spanBuilder("entry").startSpan();
+        assertThat(assembleUnder(parent).collectList().block()).containsExactly("synthetic-output", " ");
+        var modelCall = exporter.getFinishedSpanItems().stream().filter(span -> span.getName().equals("ai.model.call"))
+                .findFirst().orElseThrow();
+        assertThat(modelCall.getAttributes().get(AttributeKey.longKey("gen_ai.usage.input_tokens"))).isEqualTo(7L);
+        assertThat(modelCall.getAttributes().get(AttributeKey.longKey("gen_ai.usage.output_tokens"))).isEqualTo(13L);
+        assertThat(modelCall.getAttributes().get(AttributeKey.booleanKey("fleet.ai.usage.final"))).isTrue();
+        parent.end();
+    }
+
+    @Test void unavailablePromptKeepsTheExistingFixedFallbackAndFailureObservation() {
+        var missingPromptService = service(key -> Optional.empty());
+        Span parent = telemetry.get("test").spanBuilder("entry").startSpan();
+        Flux<String> stream;
+        try (Scope ignored = parent.makeCurrent()) {
+            stream = missingPromptService.stream(new AgentChatRequest("business-session", "qwen", "", "synthetic-user", "", "", "",
+                    List.of(), "test", "business-trace", "", "", "", ""));
+        }
+        assertThat(stream.collectList().block()).containsExactly("\n[AI Agent 调用失败] 请稍后重试");
+        assertThat(executions()).hasSize(1);
+        assertThat(executions().get(0).getAttributes().get(AttributeKey.stringKey("outcome"))).isEqualTo("failure");
+        assertThat(executions().get(0).getParentSpanId()).isEqualTo(parent.getSpanContext().getSpanId());
+        parent.end();
+    }
+
+    private java.util.List<io.opentelemetry.sdk.trace.data.SpanData> executions() {
+        return exporter.getFinishedSpanItems().stream().filter(span -> span.getName().equals("ai.agent.execution")).toList();
+    }
+
     private Flux<String> assembleUnder(Span parent) {
         try (Scope ignored = parent.makeCurrent()) {
             return service.stream(new AgentChatRequest("business-session", "qwen", "synthetic-system", "synthetic-user", "", "", "",
@@ -114,19 +171,27 @@ class PatientAnalysisTraceContextTests {
     }
 
     private PatientAnalysisAgentService service() {
+        return service(key -> Optional.of("synthetic-prompt"));
+    }
+
+    private PatientAnalysisAgentService service(AiPromptRegistryClient prompts) {
         var provider = mock(AiChatClientProvider.class);
         when(provider.selection("qwen")).thenReturn(new AiChatClientProvider.CurrentClient("qwen", "synthetic-model", ChatClient.create(model)));
         var memory = mock(MemoryAgentClient.class);
         var response = new MemoryRetrievalRpcDTO();
         response.setContext("");
         when(memory.retrieve(any())).thenReturn(response);
-        return new PatientAnalysisAgentService(provider, new AiPromptProvider(key -> Optional.of("synthetic-prompt")),
+        return new PatientAnalysisAgentService(provider, new AiPromptProvider(prompts),
                 new AiModelCallObserver(metrics, telemetry.get("test")), memory);
     }
 
     private static class FakeModel implements ChatModel {
+        volatile String subscribedSpanId;
         volatile Flux<ChatResponse> output = Flux.just(new ChatResponse(List.of(new Generation(new AssistantMessage("synthetic-output")))));
         @Override public ChatResponse call(Prompt prompt) { throw new UnsupportedOperationException(); }
-        @Override public Flux<ChatResponse> stream(Prompt prompt) { return output; }
+        @Override public Flux<ChatResponse> stream(Prompt prompt) {
+            subscribedSpanId = Span.current().getSpanContext().getSpanId();
+            return output;
+        }
     }
 }

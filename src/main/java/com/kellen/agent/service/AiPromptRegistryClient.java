@@ -15,4 +15,9 @@ public interface AiPromptRegistryClient {
      * @return Prompt 正文。
      */
     Optional<String> prompt(String promptKey);
+
+    /** 兼容现有读取器；不能把未知版本推定为配置标签或正文摘要。 */
+    default Optional<AiPromptSnapshot> snapshot(String promptKey) {
+        return prompt(promptKey).map(template -> new AiPromptSnapshot(promptKey, "unknown", "nacos", template));
+    }
 }

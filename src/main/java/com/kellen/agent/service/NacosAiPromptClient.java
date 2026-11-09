@@ -68,6 +68,11 @@ public class NacosAiPromptClient implements AiPromptRegistryClient {
 
     @Override
     public Optional<String> prompt(String promptKey) {
+        return snapshot(promptKey).map(AiPromptSnapshot::template);
+    }
+
+    @Override
+    public Optional<AiPromptSnapshot> snapshot(String promptKey) {
         if (!properties.isEnabled() || !StringUtils.hasText(promptKey) || !StringUtils.hasText(properties.getServerAddr())) {
             return Optional.empty();
         }
@@ -76,7 +81,7 @@ public class NacosAiPromptClient implements AiPromptRegistryClient {
         PromptSubscription current = subscriptions.get(key);
         long now = clock.getAsLong();
         if (current != null) {
-            Optional<String> template = current.currentTemplate();
+            Optional<AiPromptSnapshot> template = current.currentSnapshot();
             if (template.isPresent() && current.service() == aiService) {
                 return template;
             }
@@ -93,13 +98,13 @@ public class NacosAiPromptClient implements AiPromptRegistryClient {
     /**
      * 新订阅、重查空订阅或把旧客户端上的订阅改订到新客户端；同一时刻只有一个线程连 Nacos。
      */
-    private synchronized Optional<String> refresh(String promptKey, String subscriptionKey, PromptSubscription previous) {
+    private synchronized Optional<AiPromptSnapshot> refresh(String promptKey, String subscriptionKey, PromptSubscription previous) {
         PromptSubscription latest = subscriptions.get(subscriptionKey);
         if (latest != previous) {
             // 别的线程刚处理过这个 key，用它的结果，不重复连 Nacos。
-            return latest == null ? Optional.empty() : latest.currentTemplate();
+            return latest == null ? Optional.empty() : latest.currentSnapshot();
         }
-        Optional<String> earlier = previous == null ? Optional.empty() : previous.currentTemplate();
+        Optional<AiPromptSnapshot> earlier = previous == null ? Optional.empty() : previous.currentSnapshot();
         String version = text(properties.getVersion());
         String label = text(properties.getLabel());
         long now = clock.getAsLong();
@@ -114,13 +119,13 @@ public class NacosAiPromptClient implements AiPromptRegistryClient {
         if (requery) {
             unsubscribeQuietly(previous);
         }
-        AtomicReference<String> template = new AtomicReference<>("");
+        AtomicReference<AiPromptSnapshot> template = new AtomicReference<>();
         AbstractNacosPromptListener listener = new AbstractNacosPromptListener() {
             @Override
             public void onEvent(NacosPromptEvent event) {
                 Prompt prompt = event == null ? null : event.getPrompt();
                 String latest = prompt == null ? "" : text(prompt.getTemplate());
-                template.set(latest);
+                template.set(promptSnapshot(promptKey, prompt));
                 if (StringUtils.hasText(latest)) {
                     log.info("Nacos AI Prompt 已刷新，promptKey={}, version={}, label={}", promptKey, version, label);
                 } else {
@@ -132,20 +137,20 @@ public class NacosAiPromptClient implements AiPromptRegistryClient {
         try {
             Prompt prompt = service.subscribePrompt(promptKey, blankToNull(version), blankToNull(label), listener);
             if (prompt != null) {
-                template.set(text(prompt.getTemplate()));
+                template.set(promptSnapshot(promptKey, prompt));
             }
         } catch (NacosException | RuntimeException exception) {
             fail(promptKey, version, label, exception, now);
             return earlier;
         }
-        if (!StringUtils.hasText(template.get())) {
+        if (template.get() == null) {
             // 新客户端上还读不到时，先接着用重建前已读到的正文；监听器日后来了会覆盖。
             earlier.ifPresent(template::set);
         }
         PromptSubscription subscription = new PromptSubscription(promptKey, version, label, listener, template,
                 service, now + RETRY_INTERVAL_MILLIS);
         subscriptions.put(subscriptionKey, subscription);
-        if (subscription.currentTemplate().isEmpty()) {
+        if (subscription.currentSnapshot().isEmpty()) {
             log.warn("Nacos AI Prompt 订阅返回空内容（未发布、未上线或标签未指向上线版本），{} 秒后再查，promptKey={}, version={}, label={}",
                     RETRY_INTERVAL_MILLIS / 1000, promptKey, version, label);
             if (requery) {
@@ -153,7 +158,7 @@ public class NacosAiPromptClient implements AiPromptRegistryClient {
                 log.warn("Nacos AI Prompt 重查后仍为空，下次读取时重建 SDK 客户端，promptKey={}", promptKey);
             }
         }
-        return subscription.currentTemplate();
+        return subscription.currentSnapshot();
     }
 
     /** SDK 抛错：客户端可能坏了，退避期内不再连 Nacos，期满后重建再试。 */
@@ -298,6 +303,11 @@ public class NacosAiPromptClient implements AiPromptRegistryClient {
         }
     }
 
+    private static AiPromptSnapshot promptSnapshot(String key, Prompt prompt) {
+        return prompt != null && StringUtils.hasText(prompt.getTemplate())
+                ? new AiPromptSnapshot(key, prompt.getVersion(), "nacos", prompt.getTemplate().trim()) : null;
+    }
+
     /**
      * @param service 订阅所在的 SDK 客户端；与当前客户端不同说明客户端已重建，下次读取要改订
      * @param retryAt 订阅为空时，这个时刻之后才重查
@@ -307,14 +317,13 @@ public class NacosAiPromptClient implements AiPromptRegistryClient {
             String version,
             String label,
             AbstractNacosPromptListener listener,
-            AtomicReference<String> template,
+            AtomicReference<AiPromptSnapshot> template,
             AiService service,
             long retryAt
     ) {
 
-        private Optional<String> currentTemplate() {
-            String value = template.get();
-            return StringUtils.hasText(value) ? Optional.of(value.trim()) : Optional.empty();
+        private Optional<AiPromptSnapshot> currentSnapshot() {
+            return Optional.ofNullable(template.get());
         }
     }
 

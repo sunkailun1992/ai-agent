@@ -60,26 +60,29 @@ public class PatientAnalysisAgentService {
             try (Scope ignored = parent.makeCurrent()) {
                 String message = requiredText(request.message(), "message");
                 AiChatClientProvider.CurrentClient currentClient = aiChatClientProvider.selection(request.provider());
-                return modelCallObserver.observeStream(currentClient.provider(), currentClient.model(), "patient_analysis", () -> {
+                return modelCallObserver.observePromptStream(currentClient.provider(), currentClient.model(), "patient_analysis",
+                        () -> systemPrompt(request.systemPrompt()), prompt -> {
                     ChatClient.ChatClientRequestSpec spec = currentClient.chatClient()
                             .prompt()
-                            .system(systemPrompt(request.systemPrompt()))
+                            .system(prompt.template())
                             .user(user -> {
                                 user.text(userText(request, message));
                                 media(request.effectiveAttachments()).forEach(item -> user.media(item.mimeType(), item.resource()));
                             });
-                    return spec.stream().content();
-                }).doOnError(exception -> log.warn("患者分析 Agent 调用失败，已返回固定提示"))
+                    return spec.stream().chatResponse();
+                }).mapNotNull(response -> response.getResult() == null ? null : response.getResult().getOutput().getText())
+                        .filter(StringUtils::hasLength)
+                        .doOnError(exception -> log.warn("患者分析 Agent 调用失败，已返回固定提示"))
                         .onErrorResume(exception -> Flux.just("\n[AI Agent 调用失败] 请稍后重试"));
             }
         });
     }
 
-    private String systemPrompt(String requestedPrompt) {
+    private AiPromptSnapshot systemPrompt(String requestedPrompt) {
         if (StringUtils.hasText(requestedPrompt)) {
-            return requestedPrompt.trim();
+            return new AiPromptSnapshot("caller", "unknown", "caller", requestedPrompt.trim());
         }
-        return promptProvider.prompt(AiPromptProvider.PATIENT_ANALYSIS_SYSTEM);
+        return promptProvider.snapshot(AiPromptProvider.PATIENT_ANALYSIS_SYSTEM);
     }
 
     private String userText(AgentChatRequest request, String message) {
@@ -107,7 +110,18 @@ public class PatientAnalysisAgentService {
         memoryRequest.setMaxTokens(1000);
         memoryRequest.setIncludeArchived(false);
         memoryRequest.setAllowSensitive(false);
-        return memoryAgentClient.retrieve(memoryRequest);
+        return modelCallObserver.observeStep("memory.retrieve", () -> {
+            MemoryRetrievalRpcDTO response = memoryAgentClient.retrieve(memoryRequest);
+            String outcome = response == null ? "error" : !response.isEnabled()
+                    ? "memory retrieval failed".equals(response.getMessage()) ? "unavailable" : "disabled"
+                    : response.isMatched() ? "matched" : "empty";
+            var span = io.opentelemetry.api.trace.Span.current();
+            span.setAttribute("business.outcome", outcome);
+            if ("error".equals(outcome) || "unavailable".equals(outcome)) {
+                span.setStatus(io.opentelemetry.api.trace.StatusCode.ERROR);
+            }
+            return response;
+        });
     }
 
     private void appendBlock(StringBuilder builder, String title, String content) {

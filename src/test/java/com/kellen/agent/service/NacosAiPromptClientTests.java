@@ -53,6 +53,21 @@ class NacosAiPromptClientTests {
     }
 
     @Test
+    void resolvedVersionAndTemplateComeFromTheSameSubscriptionSnapshot() throws Exception {
+        AiService sdk = mock(AiService.class);
+        when(sdk.subscribePrompt(eq(SUMMARY), isNull(), eq("latest"), any()))
+                .thenReturn(new Prompt(SUMMARY, "1.0.7", "SYNTHETIC_PRIVATE_PROMPT"));
+        NacosAiPromptClient client = client(sdk);
+        var snapshot = client.snapshot(SUMMARY).orElseThrow();
+        assertThat(snapshot.version()).isEqualTo("1.0.7");
+        assertThat(snapshot.template()).isEqualTo("SYNTHETIC_PRIVATE_PROMPT");
+        assertThat(snapshot.source()).isEqualTo("nacos");
+        assertThat(snapshot.toString()).doesNotContain("SYNTHETIC_PRIVATE_PROMPT");
+        assertThat(client.prompt(SUMMARY)).contains(snapshot.template());
+        verify(sdk, times(1)).subscribePrompt(eq(SUMMARY), isNull(), eq("latest"), any());
+    }
+
+    @Test
     void namespaceChangeCannotReturnThePreviousNamespacesCachedTemplate() throws Exception {
         AiService old = mock(AiService.class);
         when(old.subscribePrompt(any(), any(), any(), any()))
