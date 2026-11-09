@@ -16,7 +16,7 @@ import java.util.Set;
 
 /** 只保留响应中的类型化用量和公开推理存在性，不保留正文或 nativeUsage 对象。 */
 final class AiResponseMetadata {
-    private static final long MAX_TOKENS = 1_000_000_000L;
+    private static final long MAX_REPORTED_COUNT = 1_000_000_000L;
     private static final Set<String> FINISH_REASONS = Set.of("stop", "length", "tool_calls", "content_filter",
             "max_tokens", "safety", "error", "cancelled", "recitation", "other");
     private Long inputTokens;
@@ -73,8 +73,8 @@ final class AiResponseMetadata {
             summaryPresent |= thought && output.getText() != null && !output.getText().isBlank();
             reasoningPresent |= summaryPresent;
             if (output.getText() != null) {
-                outputCharacters = Math.min(MAX_TOKENS, outputCharacters + output.getText().length());
-                chunks = Math.min(MAX_TOKENS, chunks + 1);
+                outputCharacters = Math.min(MAX_REPORTED_COUNT, outputCharacters + output.getText().length());
+                chunks = Math.min(MAX_REPORTED_COUNT, chunks + 1);
             }
             String finish = generation.getMetadata().getFinishReason();
             if (finish != null && !finish.isBlank()) {
@@ -93,7 +93,7 @@ final class AiResponseMetadata {
     }
 
     private static Long token(Number value) {
-        return value != null && value.longValue() >= 0 && value.longValue() <= MAX_TOKENS ? value.longValue() : null;
+        return value != null && value.longValue() >= 0 && value.longValue() <= MAX_REPORTED_COUNT ? value.longValue() : null;
     }
 
     synchronized boolean available() {
