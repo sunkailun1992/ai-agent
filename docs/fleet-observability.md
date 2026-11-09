@@ -2,9 +2,11 @@
 
 ## 需求与边界
 
-本批版本为 `0.2.1`。使用 Micrometer Prometheus registry 提供指标，OpenTelemetry API 1.59.0 仅消费统一启动入口注入的 Java agent；应用不建立 SDK，也不依赖重型 utils。Java agent 的指标与日志 exporter 保持关闭（`OTEL_METRICS_EXPORTER=none`、`OTEL_LOGS_EXPORTER=none`），日志继续走共享 ES 配置。生产 classpath 不引入测试 SDK。
+本批版本为 `0.2.2`。使用 Micrometer Prometheus registry 提供指标，OpenTelemetry API 1.59.0 仅消费统一启动入口注入的 Java agent；应用不建立 SDK，也不依赖重型 utils。Java agent 的指标与日志 exporter 保持关闭（`OTEL_METRICS_EXPORTER=none`、`OTEL_LOGS_EXPORTER=none`），日志继续走共享 ES 配置。生产 classpath 不引入测试 SDK。
 
 指标固定维度为 `application=ai-agent`、构建产物 `version`、`environment=github-dev`；部署环境可通过 `observability.environment` 覆盖。业务会话 ID、患者、租户、用户、trace ID、URL、prompt 和正文不得作为标签。
+
+原生 IDEA Spring Boot 启动不依赖 `META-INF/build-info.properties`。指标版本先读取统一启动入口提供的非空 `spring.application.version`，其次读取可选的 Jar `BuildProperties.version`；两者均缺失或空白时标记为 `unknown`，仍正常装配监控。此回退不生成虚假构建信息，也不关闭管理端点保护。
 
 ## 内部管理入口
 
