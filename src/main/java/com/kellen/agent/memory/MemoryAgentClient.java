@@ -18,6 +18,12 @@ public interface MemoryAgentClient {
      */
     MemoryRetrievalRpcDTO retrieve(MemoryRetrievalRpcRequest request);
 
+    /** 经过验证的终端身份单独传入，来源租户只是查询分区。 */
+    default MemoryRetrievalRpcDTO retrieve(MemoryRetrievalRpcRequest request,
+                                           com.kellen.agent.security.AgentRequestIdentity identity) {
+        return retrieve(request);
+    }
+
     /**
      * 提交候选长期记忆。
      *

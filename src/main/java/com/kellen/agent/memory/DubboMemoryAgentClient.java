@@ -1,7 +1,6 @@
 package com.kellen.agent.memory;
 
 import com.kellen.rpc.memory.MemoryCandidateRpcRequest;
-import com.kellen.rpc.memory.MemoryCandidateRpcService;
 import com.kellen.rpc.memory.MemoryRetrievalRpcDTO;
 import com.kellen.rpc.memory.MemoryRetrievalRpcRequest;
 import com.kellen.rpc.memory.MemoryRetrievalRpcService;
@@ -25,35 +24,39 @@ public class DubboMemoryAgentClient implements MemoryAgentClient {
     @DubboReference(check = false, timeout = 3000)
     private MemoryRetrievalRpcService retrievalRpcService;
 
-    @DubboReference(check = false, timeout = 3000)
-    private MemoryCandidateRpcService candidateRpcService;
-
     @Override
     public MemoryRetrievalRpcDTO retrieve(MemoryRetrievalRpcRequest request) {
+        return empty("memory disabled or missing trusted identity");
+    }
+
+    @Override
+    public MemoryRetrievalRpcDTO retrieve(MemoryRetrievalRpcRequest request,
+                                          com.kellen.agent.security.AgentRequestIdentity identity) {
         MemoryRetrievalRpcDTO fallback = empty("memory disabled or missing scope");
-        if (request == null || !StringUtils.hasText(request.getPatientId()) || !StringUtils.hasText(request.getSourceTenantId())) {
+        if (request == null || identity == null || !identity.tenantId().equals(request.getTenantId())
+                || !identity.userId().equals(request.getUserId())
+                || !StringUtils.hasText(request.getPatientId()) || !StringUtils.hasText(request.getSourceTenantId())) {
             return fallback;
         }
+        var attachments = org.apache.dubbo.rpc.RpcContext.getClientAttachment();
+        Object previous = attachments.getObjectAttachment("tenantId");
         try {
+            // 在实际 RPC 执行线程绑定，不能假定 Servlet ThreadLocal 能跨 Flux 调度器透传。
+            attachments.setAttachment("tenantId", identity.tenantId());
             return retrievalRpcService.retrieve(request);
         } catch (RuntimeException exception) {
             log.warn("ai-memory 召回失败，已跳过记忆上下文: {}", safeMessage(exception));
             return empty("memory retrieval failed");
+        } finally {
+            if (previous == null) attachments.removeAttachment("tenantId");
+            else attachments.setObjectAttachment("tenantId", previous);
         }
     }
 
     @Override
     public MemoryWriteRpcDTO submitCandidate(MemoryCandidateRpcRequest request) {
-        MemoryWriteRpcDTO fallback = skipped("memory disabled or missing scope");
-        if (request == null || !StringUtils.hasText(request.getPatientId()) || !StringUtils.hasText(request.getSourceTenantId())) {
-            return fallback;
-        }
-        try {
-            return candidateRpcService.submitCandidate(request);
-        } catch (RuntimeException exception) {
-            log.warn("ai-memory 候选写入失败，已跳过: {}", safeMessage(exception));
-            return skipped("memory write failed");
-        }
+        // 当前 Agent 只做召回，尚无带可信身份的候选写入入口，不能由 DTO 租户开启写操作。
+        return skipped("memory disabled or missing trusted identity");
     }
 
     static MemoryRetrievalRpcDTO empty(String message) {

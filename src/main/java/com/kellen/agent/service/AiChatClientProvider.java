@@ -59,8 +59,8 @@ public class AiChatClientProvider {
         this.deepSeekModel = properties.deepseek().model();
         this.qwenModel = properties.qwen().model();
         this.googleChatClient = buildGoogleChatClient(googleBuilder, googleMaxOutputTokens, properties.google().thinking());
-        this.deepSeekChatClient = ChatClient.builder(buildDeepSeekChatModel(properties.deepseek())).build();
-        this.qwenChatClient = ChatClient.builder(buildQwenChatModel(properties.qwen())).build();
+        this.deepSeekChatClient = ChatClient.builder(buildDeepSeekChatModel(properties.deepseek())).defaultAdvisors(new StreamingCancellationAdvisor()).build();
+        this.qwenChatClient = ChatClient.builder(buildQwenChatModel(properties.qwen())).defaultAdvisors(new StreamingCancellationAdvisor()).build();
         log.info("AI Agent Provider 初始化完成: defaultProvider={}, googleModel={}, deepSeekModel={}, qwenModel={}",
                 this.defaultProvider, this.googleModel, this.deepSeekModel, this.qwenModel);
     }
@@ -111,6 +111,7 @@ public class AiChatClientProvider {
         }
         return googleBuilder.clone()
                 .defaultOptions(options)
+                .defaultAdvisors(new StreamingCancellationAdvisor())
                 .build();
     }
 
@@ -154,7 +155,8 @@ public class AiChatClientProvider {
                                                           Duration timeout,
                                                           String reasoningEffort,
                                                           Map<String, Object> extraBody) {
-        List<OpenAiHttpClientBuilderCustomizer> httpClientCustomizers = List.of();
+        List<OpenAiHttpClientBuilderCustomizer> httpClientCustomizers = List.of(
+                builder -> builder.interceptor(StreamingCallCancellation.openAiInterceptor()));
         OpenAIClient openAiClient = OpenAiSetup.setupSyncClient(baseUrl, apiKey,
                 null, null, null, null, false, false, model, timeout, 0,
                 null, null, observationRegistry, null, httpClientCustomizers);

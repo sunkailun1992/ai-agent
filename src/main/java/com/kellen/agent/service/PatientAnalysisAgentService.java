@@ -5,6 +5,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import com.kellen.agent.dto.MediaInput;
 import com.kellen.agent.memory.MemoryAgentClient;
+import com.kellen.agent.security.AgentRequestIdentity;
 import com.kellen.rpc.memory.MemoryRetrievalRpcDTO;
 import com.kellen.rpc.memory.MemoryRetrievalRpcRequest;
 import org.slf4j.Logger;
@@ -55,6 +56,7 @@ public class PatientAnalysisAgentService {
      */
     public Flux<String> stream(AgentChatRequest request) {
         Context parent = Context.current();
+        AgentRequestIdentity identity = AgentRequestIdentity.current(request);
         return Flux.defer(() -> {
             // 订阅线程可能已属于另一请求，observer 必须在原入口 Context 下装配后立即恢复。
             try (Scope ignored = parent.makeCurrent()) {
@@ -66,7 +68,7 @@ public class PatientAnalysisAgentService {
                             .prompt()
                             .system(prompt.template())
                             .user(user -> {
-                                user.text(userText(request, message));
+                                user.text(userText(request, message, identity));
                                 media(request.effectiveAttachments()).forEach(item -> user.media(item.mimeType(), item.resource()));
                             });
                     return spec.stream().chatResponse();
@@ -85,9 +87,9 @@ public class PatientAnalysisAgentService {
         return promptProvider.snapshot(AiPromptProvider.PATIENT_ANALYSIS_SYSTEM);
     }
 
-    private String userText(AgentChatRequest request, String message) {
+    private String userText(AgentChatRequest request, String message, AgentRequestIdentity identity) {
         StringBuilder builder = new StringBuilder(message);
-        MemoryRetrievalRpcDTO memory = retrieveMemory(request, message);
+        MemoryRetrievalRpcDTO memory = retrieveMemory(request, message, identity);
         appendBlock(builder, "患者记忆上下文", memory.getContext());
         appendBlock(builder, "历史上下文", request.historyContext());
         appendBlock(builder, "知识库检索上下文", request.ragContext());
@@ -95,7 +97,7 @@ public class PatientAnalysisAgentService {
         return builder.toString();
     }
 
-    private MemoryRetrievalRpcDTO retrieveMemory(AgentChatRequest request, String message) {
+    private MemoryRetrievalRpcDTO retrieveMemory(AgentChatRequest request, String message, AgentRequestIdentity identity) {
         MemoryRetrievalRpcRequest memoryRequest = new MemoryRetrievalRpcRequest();
         memoryRequest.setCaller(StringUtils.hasText(request.caller()) ? request.caller().trim() : "ai-agent");
         memoryRequest.setPurpose("patient_analysis");
@@ -111,7 +113,14 @@ public class PatientAnalysisAgentService {
         memoryRequest.setIncludeArchived(false);
         memoryRequest.setAllowSensitive(false);
         return modelCallObserver.observeStep("memory.retrieve", () -> {
-            MemoryRetrievalRpcDTO response = memoryAgentClient.retrieve(memoryRequest);
+            MemoryRetrievalRpcDTO response;
+            if (identity == null) {
+                response = new MemoryRetrievalRpcDTO();
+                response.setEnabled(false); response.setContext("");
+                response.setMessage("memory disabled or missing trusted identity");
+            } else {
+                response = memoryAgentClient.retrieve(memoryRequest, identity);
+            }
             String outcome = response == null ? "error" : !response.isEnabled()
                     ? "memory retrieval failed".equals(response.getMessage()) ? "unavailable" : "disabled"
                     : response.isMatched() ? "matched" : "empty";

@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.apache.dubbo.rpc.RpcException;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -33,12 +34,22 @@ public class AgentServiceAuthenticationFilter extends OncePerRequestFilter {
     private final AgentRegistryProperties registry;
     private final AgentSecurityProperties security;
     private final ObjectProvider<AgentSignatureVerifier> verifiers;
+    private final ObjectProvider<AgentSessionVerifier> sessions;
 
     public AgentServiceAuthenticationFilter(AgentRegistryProperties registry, AgentSecurityProperties security,
                                              ObjectProvider<AgentSignatureVerifier> verifiers) {
+        this(registry, security, verifiers, new org.springframework.beans.factory.support.StaticListableBeanFactory()
+                .getBeanProvider(AgentSessionVerifier.class));
+    }
+
+    @Autowired
+    public AgentServiceAuthenticationFilter(AgentRegistryProperties registry, AgentSecurityProperties security,
+                                             ObjectProvider<AgentSignatureVerifier> verifiers,
+                                             ObjectProvider<AgentSessionVerifier> sessions) {
         this.registry = registry;
         this.security = security;
         this.verifiers = verifiers;
+        this.sessions = sessions;
     }
 
     @Override
@@ -111,6 +122,26 @@ public class AgentServiceAuthenticationFilter extends OncePerRequestFilter {
             reject(response, authenticationRejection(exception) ? 401 : 503,
                     authenticationRejection(exception) ? "AGENT_AUTH_REJECTED" : "AGENT_AUTH_UNAVAILABLE");
             return;
+        }
+        if (rawPath.equals("/api/agents/patient-analysis/stream") || rawPath.equals("/api/agents/patient-analysis/stream/")) {
+            Enumeration<String> authorizations = request.getHeaders("Authorization");
+            String authorization = authorizations != null && authorizations.hasMoreElements() ? authorizations.nextElement() : null;
+            if (authorization == null || authorizations.hasMoreElements() || !authorization.startsWith("Bearer ")
+                    || authorization.length() > 16391 || authorization.substring(7).isBlank()) {
+                reject(response, 401, "AGENT_IDENTITY_REQUIRED");
+                return;
+            }
+            try {
+                AgentSessionVerifier verifier = sessions.getIfAvailable();
+                if (verifier == null) {
+                    reject(response, 503, "AGENT_IDENTITY_UNAVAILABLE");
+                    return;
+                }
+                request.setAttribute(AgentRequestIdentity.ATTRIBUTE, verifier.verify(authorization.substring(7)));
+            } catch (RuntimeException invalid) {
+                reject(response, authenticationRejection(invalid) ? 401 : 503, "AGENT_IDENTITY_REJECTED");
+                return;
+            }
         }
         chain.doFilter(new ReplayableAgentRequest(request, body), response);
     }
