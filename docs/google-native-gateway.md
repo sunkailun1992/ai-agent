@@ -1,12 +1,12 @@
 # Google native gateway 客户端接入合同
 
-版本：`ai-agent 0.2.9`；Google GenAI Java SDK `1.58.0`、Spring AI `2.0.0`。
+版本：`ai-agent 0.3.0`；Google GenAI Java SDK `1.58.0`、Spring AI `2.0.0`。
 
-本次只增加可选传输入口并收紧 Google 重试，不改 Provider 白名单、业务 API、提示词、角色、附件权限或现有 typed SSE 协议。不切流、不读取真实 keys、不修改或发布 Nacos。没有把 Google 改为 OpenAI-compatible，因此 native thinking、parts、function call 与 usage 结构仍由同一 Google SDK 处理。
+`0.2.9` 增加可选传输入口并收紧 Google 重试；`0.3.0` 将 Google 凭据和模型选择统一归属服务配置，不再导入共享模型密钥文件。不改 Provider 白名单、业务 API、提示词、角色、附件权限或现有 typed SSE 协议。源码变更不代表已切流、读取真实 keys 或修改、发布 Nacos。Google 仍使用 native 协议，thinking、parts、function call 与 usage 结构由同一 Google SDK 处理。
 
 ## 参数与归属
 
-配置归属为服务框架/Google native 传输，拟由 `ai-agent-spring.yaml` 管理；环境 `github-dev`、group `DEFAULT_GROUP`，仅 `ai-agent` 消费。共享模型密钥已有 dataId 的来源保持，不移动、不复制凭据或更改 import。以下仅说明占位合同，不能直接覆盖已有远端文件：
+配置归属为服务框架/Google native 传输，由 `ai-agent-spring.yaml` 完整提供；环境 `github-dev`、group `DEFAULT_GROUP`，仅 `ai-agent` 消费。dev/test/prod 已移除 `ai-model-secrets.yaml` import，其余 import 的顺序、optional 和 refreshEnabled 保持。这样通过网关调用时，本服务不会同时导入共享文件中的原始供应商密钥。以下仅说明占位合同，不能直接覆盖已有远端文件：
 
 ```yaml
 # dataId: ai-agent-spring.yaml；分类：服务框架/Google native 传输。
@@ -24,14 +24,18 @@ spring:
   ai:
     google:
       genai:
-        # 现有字段；敏感值由已有私有配置注入，不增加新的密钥槽位。
+        # 必须在本服务配置中显式提供；空值不构成有效的 Developer API 连接。
         # 代理模式填本工作负载、环境、模型和路由限定的虚拟密钥；不使用管理 master key。
         api-key: ${GOOGLE_GENAI_API_KEY:}
+        chat:
+          options:
+            # 显式填写与该 key 权限相符的 native 物理模型；不依赖 SDK 默认模型。
+            model: ${GOOGLE_GENAI_CHAT_MODEL:}
 ```
 
 Google SDK 拼接规则为 `baseUrl + / + apiVersion + / + models/{model}:方法`。因此代理前缀 `.../gemini` 会得到 `.../gemini/v1beta/models/{model}:generateContent` 或 `:streamGenerateContent?alt=sse`。末尾 `/` 被规范化；不自动删除 URI 中已经误填的 `/v1beta`。未配置 base URL 时，SDK 的原有官方入口/版本和认证选择保留；Vertex 模式仍支持原 project/location/credentials-uri，但配置代理前缀时在读取 credentials 之前拒绝。
 
-`spring.ai.google.genai.chat.options.model` 保持既有模型字段；native pass-through 使用物理模型路径，不能假定管理台 alias 会重写它。现有 `ai.agent.google.thinking.*` 的来源、含义与默认值不变，业务提示词/角色继续由 Nacos Prompt Registry 管理。
+`spring.ai.google.genai.chat.options.model` 保持既有模型字段，须与 `api-key` 一并在服务配置中明确提供；native pass-through 使用物理模型路径，不能假定管理台 alias 会重写它。Google 自动配置直接绑定 `spring.ai.google.genai.*`，不依赖共享 dataId 名称。Developer API 缺少 key 且未配置有效 Vertex project/location 时，生产 Client factory 启动失败；不能借测试 application.yml 或操作系统环境中的其它 key 证明迁移完成。现有 `ai.agent.google.thinking.*` 的来源、含义与默认值不变，业务提示词/角色继续由 Nacos Prompt Registry 管理。
 
 ## 一次尝试与取消
 
@@ -54,8 +58,10 @@ Google 模型 factory 保留官方 options、ToolCallingManager、ObservationReg
 
 这些测试只用合成数据和 loopback HTTP，不调用外部厂商、不读取 Nacos、真实媒体或凭据。实际 LiteLLM 容器、虚拟密钥权限、日志/OTLP 隐私、供应商协议与真实模型语义仍由主会话按阶段独立验收，Java 构建通过不代替切流验收。
 
+`NacosModelConfigurationTest` 另外解析三个生产 profile，逐项核对移除共享密钥后的九项 import 顺序；仅加载合成 `ai-agent-spring.yaml` 到真实 Google 自动配置，排除系统属性、环境变量及测试 application.yml，断言实际 Client key、模型和代理/默认官方 base URL。服务 key 为空的启动负例失败关闭，不发送模型请求。这是本地配置与自动配置合同，不冒充真实 Nacos 加载或运行态切流验收。
+
 ## 迁移与回滚
 
-先发布确定 Java 制品，再由主会话对目标 Nacos 做 fresh readback/CAS，将 base URL、匹配 native 路径的模型和 scoped key 作为同一受控配置变更，受控重启目标服务后核版本、健康、一次请求、取消与日志。当前未做该步骤。
+启动 `0.3.0` 制品前，先由负责人对目标 Nacos 做 fresh readback/CAS，确认 `ai-agent-spring.yaml` 已完整提供 key、匹配 native 路径的模型和可选 base URL；不能依赖待移除的共享文件或只覆盖其中一个字段。之后受控重启目标服务，核版本、有效配置归属、健康、一次请求、取消与日志。仓库构建不执行这些运行态步骤，也不删除其它消费者可能仍需的共享 dataId。
 
-需要回到官方入口时，恢复原先授权的 provider 配置/模型/key，再将 base URL 置空并重启；不能只删除代理 URL 却保留网关虚拟密钥，然后声称官方调用可用。原凭据与快照仅由负责人在私有配置中持有，本次不读取、搬运或写入文档。若回退 Java 制品，`0.2.8` 会恢复旧的 Google SDK/上层重试默认，需一并记录行为差异。
+需要回到官方入口时，在同一 `ai-agent-spring.yaml` 中恢复原先授权的 provider 配置/模型/官方 key，再将 base URL 置空并重启；不需要恢复共享文件 import。不能只删除代理 URL 却保留网关虚拟密钥，然后声称官方调用可用。原凭据与快照仅由负责人在私有配置中持有，本次不读取、搬运或写入文档。若回退至 `0.2.9` 或更早制品，会重新导入共享模型密钥文件，须重新核对配置来源；`0.2.8` 还会恢复旧的 Google SDK/上层重试默认，需一并记录行为差异。

@@ -51,8 +51,6 @@ spring:
       - "nacos:actuator.yaml?refreshEnabled=true"
       # security-jwt.yaml：人员访问 JWT 的签名密钥与签发方。 必须存在；refreshEnabled=true 开启配置刷新。
       - "nacos:security-jwt.yaml?refreshEnabled=true"
-      # ai-model-secrets.yaml：Google GenAI 凭据与模型选择；真实凭据仅在私有渲染结果和 Nacos。 必须存在；refreshEnabled=true 开启配置刷新。
-      - "nacos:ai-model-secrets.yaml?refreshEnabled=true"
       # swagger.yaml：OpenAPI/Swagger 展示公共开关与分组配置。
       - "optional:nacos:swagger.yaml?refreshEnabled=true"
       # dubbo.yaml：Dubbo RPC、注册中心和协议配置。

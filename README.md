@@ -69,12 +69,19 @@
 
 - `logging.yml`
 - `reuse-configuration.yaml`
-- `ai-agent.yaml`
+- `traffic-governance.yaml`
+- `actuator.yaml`
+- `security-jwt.yaml`
+- `swagger.yaml`
+- `dubbo.yaml`
 - `ai-agent-spring.yaml`
+- `a2a.yaml`
 
 当前 fleet 的服务业务配置和 `{svc}-spring.yaml` 已统一放在 `DEFAULT_GROUP`。
 
-`ai-agent.yaml` 示例：
+`0.3.0` 起 dev/test/prod 不再导入 `ai-model-secrets.yaml`。Google 的完整 `spring.ai.google.genai.api-key` 和 `chat.options.model` 由 `ai-agent-spring.yaml` 显式提供，代理模式使用 scoped virtual key，并在同一文件配置可选 `ai.agent.google.base-url`；不能只靠高优先级覆盖共享原始密钥。切换前须先完成服务配置的私有发布和读回，源码发布不代表运行配置已经迁移。
+
+`ai-agent-spring.yaml` 的 Agent 参数片段：
 
 ```yaml
 ai:
@@ -109,9 +116,9 @@ ai:
       force-publish: true
 ```
 
-`custom.infra-nacos-addr` 来自 `reuse-configuration.yaml`，不要在 `ai-agent.yaml` 里重复写 NAS IP。
+`custom.infra-nacos-addr` 来自 `reuse-configuration.yaml`，不要在服务配置里重复写 NAS IP。
 
-`ai-agent-spring.yaml` 示例：
+同一 `ai-agent-spring.yaml` 的 Google 配置片段：
 
 ```yaml
 server:
@@ -123,11 +130,18 @@ spring:
       chat: google-genai
     google:
       genai:
+        # 显式提供本服务凭据；代理使用 scoped virtual key，不使用管理 master key。
         api-key: ${GOOGLE_GENAI_API_KEY:}
         chat:
           options:
-            model: ${GOOGLE_GENAI_CHAT_MODEL:gemini-2.5-flash}
+            # 必须匹配 key 授权的 native 物理模型，不依赖默认模型。
+            model: ${GOOGLE_GENAI_CHAT_MODEL:}
             temperature: 0.3
+ai:
+  agent:
+    google:
+      # 空值使用 SDK 官方入口；网关前缀止于 /gemini，修改后需受控重启。
+      base-url: ${GOOGLE_GENAI_BASE_URL:}
 ```
 
 ## Nacos AI Registry
@@ -159,7 +173,7 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 管理端点使用既有运维令牌，模型 registry 与 SSE 终态观测、内部采集要求和回滚说明见 [监控采集与回滚](docs/fleet-observability.md)。
 
-当前版本 `0.2.9` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
+当前版本 `0.3.0` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
 
 本次精确对齐 `com:fleet-observability:0.1.2`，接入 Servlet ERROR 分派再次拒绝时的唯一 HTTP 终态修复；认证、响应和日志安全字段合同保持。源码与测试通过后，目标进程和追踪/日志联结仍须单独读回验收。
 
