@@ -63,6 +63,32 @@
 
 后续如果某个 Agent 真的需要 RAG、离线任务、消息队列或独立持久化，再在对应 Agent 服务中单独引入，不把所有基础设施预先塞进纯执行层。
 
+## 生成参数来源
+
+`0.3.1` 为 DeepSeek 和 Qwen 增加独立的显式配置：
+
+```yaml
+ai:
+  agent:
+    deepseek:
+      generation-defaults-source: SERVICE
+    qwen:
+      generation-defaults-source: SERVICE
+```
+
+| 来源 | 实际请求行为 |
+| --- | --- |
+| `SERVICE`（未配置时的默认值） | 保留旧行为：下发服务绑定的 temperature、top-p 和输出 token 上限；DeepSeek 同时下发 thinking 与 reasoning effort。原输出上限最小 1024 的处理保持。 |
+| `DEPLOYMENT` | 不下发上述生成参数，也不下发 provider thinking extra body；由 LiteLLM 原生 deployment 维护生成默认值。保留模型 alias、超时、SDK/options 的零重试与流式 usage 协议。 |
+
+来源不由 URL 内容推断，未知枚举值会在配置绑定时拒绝。两个 provider 可分别迁移；Google 现有原生模型、输出与 thinking 选项不受此开关影响。应用请求 DTO 不新增任意模型 kwargs，不提供第二套模型管理 CRUD。
+
+切到 `DEPLOYMENT` 前，必须先把当前有效的采样、输出上限与思考默认值按原语义配置到对应 LiteLLM deployment，并独立读回；该模式没有 Agent 本地输出硬上限。不能只切开关就假定网关已经保留原 8192 或其它运行值，也不能用源码默认值覆盖实际旧配置。
+
+这些 ChatClient/ChatModel 在启动时构造，当前没有 `RefreshScope` 或模型客户端热重建入口。修改来源或 `SERVICE` 生成参数后需要受控重启并验证实际 wire；Nacos 的 `refreshEnabled` 不代表现有客户端已采用新选项。回滚时显式恢复 `SERVICE` 与原服务参数，再受控重启，不自动探测或回退。
+
+`GenerationDefaultsWireHttpTest` 使用真实 Spring Boot 配置绑定、生产 Provider、Spring AI/OpenAI SDK 和自有回环 HTTP，验证字段缺席/旧值保留、流式 usage、未知枚举拒绝，以及同步/异步 503 只发送一次请求。SDK/options 的 `maxRetries=0` 不扩大为所有底层传输故障都不会连接恢复；现有 SDK 的连接行为保持。
+
 ## Nacos 配置
 
 `ai-agent` 启动时从 `DEFAULT_GROUP` 加载：
@@ -173,7 +199,7 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 管理端点使用既有运维令牌，模型 registry 与 SSE 终态观测、内部采集要求和回滚说明见 [监控采集与回滚](docs/fleet-observability.md)。
 
-当前版本 `0.3.0` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
+当前版本 `0.3.1` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
 
 本次精确对齐 `com:fleet-observability:0.1.2`，接入 Servlet ERROR 分派再次拒绝时的唯一 HTTP 终态修复；认证、响应和日志安全字段合同保持。源码与测试通过后，目标进程和追踪/日志联结仍须单独读回验收。
 

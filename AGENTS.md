@@ -52,7 +52,9 @@
 - Agent 只能返回模型执行结果、结构化候选结果或流式文本；是否保存、推进状态、切换会话、推送外部系统由主服务控制。
 - 模型选择必须通过 `AiChatClientProvider`，业务代码不得直接绑定某个模型供应商。
 - 当前 Provider 允许值为 `google` / `deepseek` / `qwen`；新增 Provider 必须补齐白名单、配置、文档、测试和回滚说明。
-- Prompt 优先通过 Nacos AI Prompt 管理或 `ai.prompts.*` 配置读取；代码中的长 Prompt 只能作为兜底，不能成为运营主数据。
+- DeepSeek/Qwen 的 `generation-defaults-source` 只接受 `SERVICE`（默认，保留旧服务参数）或 `DEPLOYMENT`（省略服务生成参数，继承 LiteLLM 原生 deployment）；不能根据 URL 猜测，也不能让隐式 Java 默认值覆盖已选择的 deployment 来源。Google 的既有选项独立保留。
+- 模型客户端在启动时构造，生成来源和服务选项变更必须受控重启，不能因 Nacos `refreshEnabled` 宣称已热生效。切到 `DEPLOYMENT` 前先读回原生生成默认值与输出上限；Agent 不额外保有该模式的输出硬上限。真实 wire、配置发布和运行态分别验收。
+- 业务调用方已解析并传入的角色 Prompt 优先；主 AI 业务的角色源由其数据库维护。Agent 独立调用且未收到 Prompt 时，才按显式开关读取 Nacos AI Prompt Registry 或 `ai.prompts.*` 兜底；公开配置默认关闭 Registry 与启动同步，不把同一业务 Prompt 同时交给两个控制面编辑。代码中的长 Prompt 不能成为运营主数据。
 - 测试分层按 `docs/ai-coding/TESTING_SPEC.md` 执行；核心 Agent 链路不能只靠 mock 或纯对象 `assertThat`，必须补 Spring Boot 级别测试。
 - 患者分析 Agent 必须保留医疗安全边界，不能替代医生诊断、治疗、用药或急救判断。
 - 多模态附件 URL 默认不可信，必须限制协议、MIME、远端 Content-Type、数量和大小；不得支持本地文件路径、classpath、ftp、jar 等协议。

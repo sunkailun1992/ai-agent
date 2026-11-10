@@ -1,6 +1,7 @@
 package com.kellen.agent.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
@@ -18,6 +19,12 @@ public record AgentProperties(
         @DefaultValue DeepSeekProperties deepseek,
         @DefaultValue QwenProperties qwen
 ) {
+
+    /** 生成参数来源；SERVICE 保留旧服务选项，DEPLOYMENT 由模型网关维护默认值。 */
+    public enum GenerationDefaultsSource {
+        SERVICE,
+        DEPLOYMENT
+    }
 
     /**
      * Google Gemini 扩展配置。
@@ -54,6 +61,7 @@ public record AgentProperties(
      * @param maxTokens      输出 token 上限。
      * @param timeoutSeconds 请求超时秒数。
      * @param thinking       思考模式配置。
+     * @param generationDefaultsSource 生成参数来源，默认 SERVICE；DEPLOYMENT 不下发服务采样、输出上限和思考覆盖。
      */
     public record DeepSeekProperties(
             @DefaultValue("https://api.deepseek.com") String baseUrl,
@@ -63,8 +71,19 @@ public record AgentProperties(
             @DefaultValue("0.8") double topP,
             @DefaultValue("8192") int maxTokens,
             @DefaultValue("180") long timeoutSeconds,
-            @DefaultValue DeepSeekThinkingProperties thinking
+            @DefaultValue DeepSeekThinkingProperties thinking,
+            @DefaultValue("SERVICE") GenerationDefaultsSource generationDefaultsSource
     ) {
+        @ConstructorBinding
+        public DeepSeekProperties {
+            if (generationDefaultsSource == null) generationDefaultsSource = GenerationDefaultsSource.SERVICE;
+        }
+
+        /** 保留旧构造签名；直接调用方未提供来源时继续使用服务参数。 */
+        public DeepSeekProperties(String baseUrl, String apiKey, String model, double temperature, double topP,
+                                  int maxTokens, long timeoutSeconds, DeepSeekThinkingProperties thinking) {
+            this(baseUrl, apiKey, model, temperature, topP, maxTokens, timeoutSeconds, thinking, GenerationDefaultsSource.SERVICE);
+        }
     }
 
     /**
@@ -89,6 +108,7 @@ public record AgentProperties(
      * @param topP           nucleus 采样范围。
      * @param maxTokens      输出 token 上限。
      * @param timeoutSeconds 请求超时秒数。
+     * @param generationDefaultsSource 生成参数来源，默认 SERVICE；DEPLOYMENT 不下发服务采样和输出上限。
      */
     public record QwenProperties(
             @DefaultValue("https://dashscope.aliyuncs.com/compatible-mode/v1") String baseUrl,
@@ -97,7 +117,18 @@ public record AgentProperties(
             @DefaultValue("0.3") double temperature,
             @DefaultValue("0.8") double topP,
             @DefaultValue("8192") int maxTokens,
-            @DefaultValue("180") long timeoutSeconds
+            @DefaultValue("180") long timeoutSeconds,
+            @DefaultValue("SERVICE") GenerationDefaultsSource generationDefaultsSource
     ) {
+        @ConstructorBinding
+        public QwenProperties {
+            if (generationDefaultsSource == null) generationDefaultsSource = GenerationDefaultsSource.SERVICE;
+        }
+
+        /** 保留旧构造签名；直接调用方未提供来源时继续使用服务参数。 */
+        public QwenProperties(String baseUrl, String apiKey, String model, double temperature, double topP,
+                              int maxTokens, long timeoutSeconds) {
+            this(baseUrl, apiKey, model, temperature, topP, maxTokens, timeoutSeconds, GenerationDefaultsSource.SERVICE);
+        }
     }
 }

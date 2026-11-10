@@ -122,6 +122,7 @@ public class AiChatClientProvider {
                 deepseek.baseUrl(),
                 deepseek.apiKey(),
                 deepseek.model(),
+                deepseek.generationDefaultsSource(),
                 deepseek.temperature(),
                 deepseek.topP(),
                 deepseek.maxTokens(),
@@ -137,6 +138,7 @@ public class AiChatClientProvider {
                 qwen.baseUrl(),
                 qwen.apiKey(),
                 qwen.model(),
+                qwen.generationDefaultsSource(),
                 qwen.temperature(),
                 qwen.topP(),
                 qwen.maxTokens(),
@@ -149,6 +151,7 @@ public class AiChatClientProvider {
     private OpenAiChatModel buildOpenAiCompatibleChatModel(String baseUrl,
                                                           String apiKey,
                                                           String model,
+                                                          AgentProperties.GenerationDefaultsSource generationDefaultsSource,
                                                           double temperature,
                                                           double topP,
                                                           int maxTokens,
@@ -168,15 +171,16 @@ public class AiChatClientProvider {
                 .apiKey(apiKey)
                 .timeout(timeout)
                 .maxRetries(0)
-                .model(model)
-                .temperature(temperature)
-                .topP(topP)
-                .maxTokens(Math.max(maxTokens, 1024));
-        if (hasText(reasoningEffort)) {
-            optionsBuilder.reasoningEffort(reasoningEffort);
-        }
-        if (extraBody != null && !extraBody.isEmpty()) {
-            optionsBuilder.extraBody(extraBody);
+                .model(model);
+        // 网关模式只保留传输/协议选项，不能让服务默认值覆盖原生 deployment 配置。
+        if (generationDefaultsSource == AgentProperties.GenerationDefaultsSource.SERVICE) {
+            optionsBuilder.temperature(temperature).topP(topP).maxTokens(Math.max(maxTokens, 1024));
+            if (hasText(reasoningEffort)) {
+                optionsBuilder.reasoningEffort(reasoningEffort);
+            }
+            if (extraBody != null && !extraBody.isEmpty()) {
+                optionsBuilder.extraBody(extraBody);
+            }
         }
         OpenAiChatOptions options = optionsBuilder.build();
         return OpenAiChatModel.builder()
