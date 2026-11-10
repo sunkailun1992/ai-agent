@@ -56,7 +56,7 @@
 - 测试分层按 `docs/ai-coding/TESTING_SPEC.md` 执行；核心 Agent 链路不能只靠 mock 或纯对象 `assertThat`，必须补 Spring Boot 级别测试。
 - 患者分析 Agent 必须保留医疗安全边界，不能替代医生诊断、治疗、用药或急救判断。
 - 多模态附件 URL 默认不可信，必须限制协议、MIME、远端 Content-Type、数量和大小；不得支持本地文件路径、classpath、ftp、jar 等协议。
-- `application.yml` 只保留本地启动和 Nacos import 入口；真实模型密钥、生产地址和数据库密码必须放在 Nacos。
+- `application.yml` 只保留本地启动和 Nacos import 入口。模型部署、上游 provider 凭据与调用治理以 LiteLLM 原生控制台为唯一源；Agent 通过私有 OS 环境持有自己的最小权限 virtual key，Nacos 服务配置只引用占位符与网关连接信息。经明确记录的未迁移 provider 可暂保原直连凭据，但不能据此恢复共享模型密钥导入。数据库、注册发现等基础设施配置继续由 Nacos 管理，所有真实值不得进入 Git。
 - `ai-agent-spring.yaml` 位于当前全局 Nacos 配置 group `DEFAULT_GROUP`；不要再新增 `group=test` 的服务配置引用。
 - 当前 `ai-agent` 不直接维护业务库 DDL；如果后续接入 PostgreSQL、MyBatis-Plus DDL 与 Seata AT，首次启动空库前必须先在目标业务库手动执行 `../utils/src/main/resources/db/postgresql/common-infra-schema.sql`，不能依赖应用首次启动自动创建 `undo_log`。
 - 新增本服务对外 Controller、服务前缀，或新增后续独立 Agent 服务需要经网关访问时，必须同步评估 `../gateway` 的 Nacos `gateway-spring.yaml`；需要 Swagger UI 聚合的服务要先保证对应网关文档路径返回 200，再加入 `springdoc.swagger-ui.urls`。

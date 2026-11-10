@@ -191,4 +191,6 @@ Spring AI 2.0.0 的 Google 同步 `ResponseStream` 会占用订阅线程，默�
 
 `PatientAnalysisCancellationHttpTest` 用真实 Spring Boot HTTP、Agent Controller/Service、ChatClient 和 Google/OpenAI SDK 连接回环持续 SSE 替身：读取首帧时上游仍在生成，关闭客户端后核对模型取消、厂商 HTTP 断开、唯一终态和父子 trace。取消的用量不标成最终值。另有共享客户端并发隔离、先取消后创建 Call、句柄清理、默认认证模式与超时回归。真实厂商链路仍须单独验收；Servlet 断连的识别发生在后续写出或容器通知时。
 
-Google Developer API 可选 `ai.agent.google.base-url` 接入 native gateway；为空时使用 SDK 既有官方入口。代理 URI 应止于 `/gemini`，不带 `/v1beta` 或模型方法路径；现有 `spring.ai.google.genai.api-key` 可注入 scoped virtual key。参数归属、启动生效、版本与回滚边界见 [Google native gateway 接入](docs/google-native-gateway.md)。本轮只增加客户端能力和回环合成验收，没有修改或发布 Nacos，没有接入真实模型。
+Google Developer API 可选 `ai.agent.google.base-url` 接入 native gateway；为空时使用 SDK 既有官方入口。代理 URI 应止于 `/gemini`，不带 `/v1beta` 或模型方法路径；现有 `spring.ai.google.genai.api-key` 可注入 scoped virtual key。参数归属、启动生效、版本与回滚边界见 [Google native gateway 接入](docs/google-native-gateway.md)。该客户端改造的自动化验证使用回环合成上游；实际配置发布、服务重启与真实 provider 验收必须另行取证，不能由源码或测试结果推定。
+
+模型部署、上游凭据、virtual key 与调用治理统一由 LiteLLM 原生控制台维护，Agent 不复制一套模型管理 CRUD。应用只从私有 OS 环境读取本服务的最小权限 key；Nacos 保留服务连接与 `${GITHUB_*_API_KEY}` 占位符。尚未通过目标部署网络及 native 协议验收的 provider 可按私有迁移回执暂保直连，不得自动回退或将其写成已切流。配置归属与不同模型能力边界见 [fleet 模型控制面说明](https://github.com/sunkailun1992/utils/blob/main/ops/github-dev/ai-gateway/README.md)。
