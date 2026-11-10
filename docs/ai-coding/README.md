@@ -27,13 +27,13 @@
 
 ## 必读结论
 
-- `ai-agent` 是模型执行层，不保存业务会话、聊天记忆、问卷状态、审计数据或文件元数据。
+- `ai-agent` 是模型执行层，不保存业务会话、聊天记忆、审计数据或文件元数据。
 - 当前保留 Spring AI、Nacos discovery/config、Web/WebFlux 和 Actuator。
 - 当前不引入 MySQL、MyBatis-Plus、Redis、RabbitMQ、Seata、XXL-JOB、Elasticsearch 或 Qdrant。
 - 主调用链保持 `AgentController -> Agent Service -> AiChatClientProvider`。
 - 模型 Key 和 Provider 配置只放 Nacos 配置中心或环境变量。
 - 分支命名、短分支生命周期、release/hotfix、tag 和分支清理按 `BRANCHING_SPEC.md` 处理。
-- 环境、Nacos namespace、Java profile 和前端/小程序边界按 `ENVIRONMENT_CONFIG_SPEC.md` 处理。
+- 环境、Nacos namespace、Java profile 和前端客户端边界按 `ENVIRONMENT_CONFIG_SPEC.md` 处理。
 - 项目版本、公共包依赖和后端 Java 新项目基础坐标按 `VERSIONING_SPEC.md` 处理；纯 AI 规范或 README 改动不提升制品版本。
 - Dubbo RPC 契约统一维护在同级 `../rpc-api`；`ai-agent` 通过契约暴露或消费 Agent 能力，不在服务内复制接口/DTO。
 - 测试按 `TESTING_SPEC.md` 分层；核心接口用真实 Spring Boot HTTP 集成测试，核心 Agent 编排用真实 Spring Bean 测试，模型供应商默认 fake/stub。

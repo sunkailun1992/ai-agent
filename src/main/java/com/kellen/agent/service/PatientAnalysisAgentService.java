@@ -74,8 +74,7 @@ public class PatientAnalysisAgentService {
                     return spec.stream().chatResponse();
                 }).mapNotNull(response -> response.getResult() == null ? null : response.getResult().getOutput().getText())
                         .filter(StringUtils::hasLength)
-                        .doOnError(exception -> log.warn("患者分析 Agent 调用失败，已返回固定提示"))
-                        .onErrorResume(exception -> Flux.just("\n[AI Agent 调用失败] 请稍后重试"));
+                        .doOnError(exception -> log.warn("患者分析 Agent 调用失败，由 HTTP 边界返回固定错误事件"));
             }
         });
     }

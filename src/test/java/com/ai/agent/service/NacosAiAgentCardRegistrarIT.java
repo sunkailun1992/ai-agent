@@ -50,7 +50,7 @@ class NacosAiAgentCardRegistrarIT {
     }
 
     @Test
-    void registersBothAgentCardsWithRealIpEndpoints() throws Exception {
+    void registersPatientAgentCardWithRealIpEndpoint() throws Exception {
         AgentRegistryProperties props = properties();
         String expectedHost = env("NACOS_A2A_ADVERTISE", "");
         NacosAiAgentCardRegistrar registrar = new NacosAiAgentCardRegistrar(props, 7310);
@@ -62,9 +62,6 @@ class NacosAiAgentCardRegistrarIT {
             System.out.println("patient-analysis-agent url = " + patientUrl);
             assertHost(patientUrl, "patient-analysis/stream", expectedHost);
 
-            String qUrl = firstInterfaceUrl(reader.getAgentCard("questionnaire-agent"));
-            System.out.println("questionnaire-agent url = " + qUrl);
-            assertHost(qUrl, "questionnaire/", expectedHost);
         } finally {
             registrar.shutdown();
             reader.shutdown();

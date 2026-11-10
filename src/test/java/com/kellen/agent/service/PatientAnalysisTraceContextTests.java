@@ -86,11 +86,12 @@ class PatientAnalysisTraceContextTests {
         assertThat(Span.current().getSpanContext().isValid()).isFalse();
     }
 
-    @Test void actualServiceRecordsSuccessErrorFallbackAndCancellationOnceWithOriginalParent() {
+    @Test void actualServiceRecordsSuccessFailureAndCancellationOnceWithOriginalParent() {
         Span parent = telemetry.get("test").spanBuilder("assembly-parent").startSpan();
         assertThat(assembleUnder(parent).collectList().block()).containsExactly("synthetic-output");
         model.output = Flux.error(new IllegalStateException("synthetic-model-failure"));
-        assertThat(assembleUnder(parent).collectList().block()).containsExactly("\n[AI Agent 调用失败] 请稍后重试");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> assembleUnder(parent).collectList().block())
+                .isInstanceOf(IllegalStateException.class).hasMessage("synthetic-model-failure");
         model.output = Flux.never();
         var subscription = assembleUnder(parent).subscribe();
         subscription.dispose();
@@ -144,7 +145,7 @@ class PatientAnalysisTraceContextTests {
         parent.end();
     }
 
-    @Test void unavailablePromptKeepsTheExistingFixedFallbackAndFailureObservation() {
+    @Test void unavailablePromptPropagatesFailureAndKeepsFailureObservation() {
         var missingPromptService = service(key -> Optional.empty());
         Span parent = telemetry.get("test").spanBuilder("entry").startSpan();
         Flux<String> stream;
@@ -152,7 +153,8 @@ class PatientAnalysisTraceContextTests {
             stream = missingPromptService.stream(new AgentChatRequest("business-session", "qwen", "", "synthetic-user", "", "", "",
                     List.of(), "test", "business-trace", "", "", "", ""));
         }
-        assertThat(stream.collectList().block()).containsExactly("\n[AI Agent 调用失败] 请稍后重试");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> stream.collectList().block())
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("Nacos AI Prompt");
         assertThat(executions()).hasSize(1);
         assertThat(executions().get(0).getAttributes().get(AttributeKey.stringKey("outcome"))).isEqualTo("failure");
         assertThat(executions().get(0).getParentSpanId()).isEqualTo(parent.getSpanContext().getSpanId());

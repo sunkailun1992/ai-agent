@@ -214,7 +214,6 @@ class PatientAnalysisCancellationHttpTest {
             return new AiModelCallObserver(metrics, telemetry.get("cancel-http-test"));
         }
         @Bean AiChatClientProvider clients() { return mock(AiChatClientProvider.class); }
-        @Bean QuestionnaireAgentService questionnaire() { return mock(QuestionnaireAgentService.class); }
         @Bean PatientAnalysisAgentService patient(AiChatClientProvider clients, AiModelCallObserver observer) {
             var memory = mock(MemoryAgentClient.class);
             var response = new MemoryRetrievalRpcDTO(); response.setContext("");

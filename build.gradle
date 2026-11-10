@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ai.agent"
-version = "0.2.7"
+version = "0.2.8"
 
 def privateMavenUrl = providers.gradleProperty("privateMavenUrl")
         .orElse(providers.environmentVariable("PRIVATE_MAVEN_URL"))

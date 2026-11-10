@@ -11,14 +11,13 @@
 当前能力：
 
 - `patient-analysis-agent`：患者分析和报告解读流式输出。
-- `questionnaire-agent`：问卷自然提问和答案解释。
 - 使用 Spring AI 2 接入模型。
 - 使用 Nacos 配置中心加载模型参数；Prompt 正文由 Nacos AI Prompt Registry 管理。
 - 使用 Nacos 服务发现注册 `ai-agent` 实例。
 
 当前不做：
 
-- 不保存用户会话、聊天记忆、问卷状态或审计数据。
+- 不保存用户会话、聊天记忆或审计数据。
 - 不直接写业务库。
 - 不新增业务表、DDL、Entity、Repository 或 Mapper；确需持久化时先拆到主 `ai`、`rag` 或独立业务服务，并按目标服务表设计规范执行。
 - 不引入 DB、ORM、MQ、Seata、Redis、ES、Qdrant 等基础设施。
@@ -49,7 +48,7 @@ checksum、审计日志、覆盖策略和 `force-publish` 开关。
 ## 3. 分层
 
 - `controller`：Agent HTTP 接口。
-- `service`：模型 Provider、Prompt 读取、患者分析、问卷执行。
+- `service`：模型 Provider、Prompt 读取、患者分析。
 - `dto`：Agent 请求/响应结构。
 - `config`：Agent 和 Prompt 配置绑定。
 
@@ -59,6 +58,9 @@ checksum、审计日志、覆盖策略和 `force-publish` 开关。
 
 - 模型调用统一经过 `AiChatClientProvider`。
 - Controller 不直接注入 `ChatClient` 或厂商 SDK。
+- 患者分析 Service 必须保留模型失败信号；仅 Controller 将其映射为 `event:error` 和固定友好文本。
+- 内部流式请求使用 `X-AI-Stream-Protocol: typed-sse-v1`，成功建立该协议时在响应中确认；不支持的请求版本在执行前拒绝。
+- 错误文本仍使用纯文本 `data`，不把原始供应商异常返回调用方，不用错误文案匹配代替事件类型。
 - `provider` 请求参数只能作为受控覆盖；默认使用 `ai.agent.provider`。
 - Agent 不保留 Prompt 正文本地兜底；注册中心不可读时按业务降级或失败处理，但不能悄悄使用过期本地 Prompt。
 

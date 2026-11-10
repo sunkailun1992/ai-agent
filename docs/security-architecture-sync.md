@@ -8,7 +8,7 @@ Actuator 仅 health 和探针子路径匿名可读，其余端点要求 `actuato
 
 Nacos AI Prompt 空订阅或 SDK 错误采用 30 秒退避重试；同一连接故障恢复期间可继续使用已成功读取的正文。namespace、地址或凭据变化属于新的订阅身份，禁止返回旧环境正文。启动后异步预读本制品现有 Prompt，仅记录可读状态，不发布新增业务 Prompt。
 
-本批保留已有 Agent / Provider / Prompt 资源，不引入其他项目的医疗、医院、设备工具、问卷扩展、语音或报告 Agent。AgentSpec 自动发布基础设施依赖对应发布资源，本批不启用。
+本批保留已有 Agent / Provider / Prompt 资源，不引入其他项目的医疗、医院、设备工具、语音或报告 Agent。AgentSpec 自动发布基础设施依赖对应发布资源，本批不启用。
 
 验证：`./gradlew test --no-daemon`、`./gradlew bootJar --no-daemon`、`bash scripts/check-secrets.sh`。签名、篡改与 Actuator 测试走真实本地 HTTP 端口，外部认证和模型使用合成桩；真实认证/Nacos联调另行验收。
 

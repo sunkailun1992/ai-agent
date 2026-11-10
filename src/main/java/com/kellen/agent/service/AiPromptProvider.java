@@ -9,8 +9,6 @@ import org.springframework.stereotype.Service;
 public class AiPromptProvider {
 
     public static final String PATIENT_ANALYSIS_SYSTEM = "patient-analysis-system";
-    public static final String QUESTIONNAIRE_INTERPRETER_SYSTEM = "questionnaire-interpreter-system";
-    public static final String QUESTIONNAIRE_REPLY_SYSTEM = "questionnaire-reply-system";
 
     private final AiPromptRegistryClient registryClient;
 

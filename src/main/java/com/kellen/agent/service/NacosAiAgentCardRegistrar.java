@@ -35,7 +35,7 @@ import java.util.Properties;
  * Nacos AI A2A 注册中心自动注册器。
  *
  * <p>ai-agent 启动后通过 Nacos 官方 {@link AiService}（{@code A2aService}）SDK 自动发布
- * 患者分析、问卷两张 AgentCard（{@code releaseAgentCard}），把卡的可调用接口地址写成
+ * 患者分析 AgentCard（{@code releaseAgentCard}），把卡的可调用接口地址写成
  * 配置的对外地址；进程关闭时释放 SDK 客户端。这样消费方主 {@code ai} 服务读取 AgentCard
  * 即可拿到可达地址，全流程代码驱动，不再依赖在控制台手工维护 AgentCard。</p>
  *
@@ -274,22 +274,7 @@ public class NacosAiAgentCardRegistrar {
                 List.of(patientAnalysis, reportAnalysis),
                 List.of("/api/agents/patient-analysis/stream"));
 
-        AgentSkill conversational = skill("conversational-questionnaire", "对话式问卷",
-                "按后端问卷模板进行自然语言问答采集。",
-                List.of("questionnaire", "form", "medical"),
-                List.of("开始症状初筛问卷", "继续刚才没有完成的问卷"));
-        AgentSkill interpretation = skill("answer-interpretation", "答案解释",
-                "把患者自然语言回答解析为结构化候选答案，并在需要时给出追问建议。",
-                List.of("questionnaire", "nlp", "medical"),
-                List.of("把我的回答整理成标准选项"));
-        AgentDefinition questionnaire = new AgentDefinition(
-                "questionnaire-agent",
-                "对话式问卷采集 Agent，负责自然提问、答案解释、未完成问卷恢复和结构化保存。",
-                false,
-                List.of(conversational, interpretation),
-                List.of("/api/agents/questionnaire/reply", "/api/agents/questionnaire/interpret"));
-
-        return List.of(patient, questionnaire);
+        return List.of(patient);
     }
 
     private AgentSkill skill(String id, String name, String description,

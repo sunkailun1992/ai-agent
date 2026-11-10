@@ -33,6 +33,6 @@ class AiPromptProviderTests {
         AiPromptProvider provider = new AiPromptProvider(key -> Optional.empty());
 
         assertThrows(IllegalStateException.class,
-                () -> provider.prompt(AiPromptProvider.QUESTIONNAIRE_REPLY_SYSTEM));
+                () -> provider.prompt(AiPromptProvider.PATIENT_ANALYSIS_SYSTEM));
     }
 }

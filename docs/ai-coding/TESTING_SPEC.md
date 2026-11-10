@@ -18,7 +18,7 @@
 
 ## 业务测试要求
 
-- Provider 白名单、模型选择、Prompt 读取、患者分析 Agent、问卷追问 Agent、问卷解释 Agent 等核心路径必须有 Spring Boot 级别测试。
+- Provider 白名单、模型选择、Prompt 读取、患者分析 Agent 等核心路径必须有 Spring Boot 级别测试。
 - Controller 测试优先走真实 HTTP 请求，验证路由、参数校验、统一响应、流式边界和异常处理。
 - 不允许只用 mock 或纯 Java 对象测试替代核心业务集成测试。
 

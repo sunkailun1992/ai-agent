@@ -1,8 +1,8 @@
 # ai-agent
 
-`ai-agent` 是 AI 患者分析助手的模型执行层服务。它承载可拆分的 Spring AI Agent 能力，不保存用户会话、聊天记忆、问卷状态、审计数据或业务文件元数据。
+`ai-agent` 是 AI 患者分析助手的模型执行层服务。它承载可拆分的 Spring AI Agent 能力，不保存用户会话、聊天记忆、审计数据或业务文件元数据。
 
-主 `ai` 服务仍负责入口、鉴权、会话、审计、文件 token、问卷模板和问卷状态机；`ai-agent` 只负责把输入交给模型并返回结果。
+主 `ai` 服务仍负责入口、鉴权、会话、审计、文件 token；`ai-agent` 只负责把输入交给模型并返回结果。
 
 代码分支使用 `main`（正式主干）、`test`（整合测试）、`preprod`（候选预发）与短功能分支。分支不自动改变运行 profile；完整功能进入远端 main 并核对后，按本任务授权清理本地与远程功能分支，保护未合、其他 worktree 占用及长期分支。细则见 [分支管理规范](docs/ai-coding/BRANCHING_SPEC.md)。
 
@@ -15,9 +15,32 @@
 ## 当前接口
 
 - `POST /api/agents/patient-analysis/stream`
-- `POST /api/agents/questionnaire/reply`
-- `POST /api/agents/questionnaire/interpret`
 - `GET /api/agents/model?provider=google|deepseek|qwen`
+
+### SSE 执行结果与版本配对
+
+患者分析流的成功 chunk 仍是纯文本 `data`。执行失败在流式响应中发送 `event:error`，
+`data` 维持友好提示 `\n[AI Agent 调用失败] 请稍后重试`；不把原始供应商错误写入响应，
+也不使用 `id` 承载错误码。业务 Service 保留失败信号，只有 HTTP Controller 把它转成错误事件；
+模型／Agent 的 failure 观测不会被友好文本覆盖。输出部分文本后失败仍发送错误事件，
+取消保持取消，不生成失败提示。
+
+主 `ai` 请求携带 `X-AI-Stream-Protocol: typed-sse-v1`，本服务以相同响应头确认。
+不支持的请求版本在模型执行前返回 HTTP 406。无该请求头的旧调用方仍可消费文本 `data`；
+本服务同样返回协议确认头。服务 HMAC、终端 User JWT 和 Memory 租户校验保持原边界。
+
+| AI 消费方 | Agent 执行方 | 行为与交付边界 |
+|---|---|---|
+| 新版 | 新版 | 读取错误事件；失败不写 success 审计或 assistant 记忆 |
+| 新版 | 旧版 | 响应缺少协议确认即失败关闭，不把旧 fallback 文本判作成功 |
+| 旧版 | 新版 | 仍能显示友好 `data`，旧 AI 无法读取错误类型，仍可能错误记录 success |
+
+必须配套升级 AI 与 Agent 后再验收。新版 AI 先上线可防止旧协议被当成成功，但旧 Agent
+仍可能在响应被拒绝前执行模型；协议拒绝不等于供应商从未执行。回滚也应按配对版本执行。
+
+`PatientAnalysisErrorHttpTest` 使用真实 Spring HTTP、Controller、Service、ChatClient 与模型替身，
+覆盖正常、执行失败、部分输出后失败及协议拒绝；`PatientAnalysisCancellationHttpTest`
+继续验证活动模型 HTTP 取消。默认测试不调用真实模型。
 
 ## 当前依赖边界
 
@@ -111,24 +134,18 @@ spring:
 
 Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务会通过 Nacos 官方 AI SDK 读取 AgentCard，再按 AgentCard 的 `supportedInterfaces` 调用本服务。
 
-当前需要登记两个 Agent：
+当前只登记患者分析 Agent：
 
 - `patient-analysis-agent`
   - 服务地址：`http://<AI_AGENT_HOST>:7310/api/agents/patient-analysis/stream`
   - 传输协议：`HTTP+JSON`
   - 流式传输：开启
   - 技能：`patient-analysis`、`report-analysis`
-- `questionnaire-agent`
-  - 服务地址 1：`http://<AI_AGENT_HOST>:7310/api/agents/questionnaire/reply`
-  - 服务地址 2：`http://<AI_AGENT_HOST>:7310/api/agents/questionnaire/interpret`
-  - 传输协议：`HTTP+JSON`
-  - 流式传输：关闭
-  - 技能：`conversational-questionnaire`、`answer-interpretation`
 
 `<AI_AGENT_HOST>` 必须从主 `ai` 服务运行环境可达。Docker 同网络可以使用
 `ai-agent` 主机名；本地 Mac 联调时通常使用 `127.0.0.1` 或本机局域网 IP。
 
-租户可沿用 `orb-ai`。不要把主服务入口 `/api/ai/chat`、`/api/ai/questionnaire/chat` 填到 Agent 执行层。
+租户可沿用 `orb-ai`。不要把主服务入口 `/api/ai/chat` 填到 Agent 执行层。
 
 ## 本地验证
 
@@ -142,7 +159,7 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 管理端点使用既有运维令牌，模型 registry 与 SSE 终态观测、内部采集要求和回滚说明见 [监控采集与回滚](docs/fleet-observability.md)。
 
-当前版本 `0.2.7` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
+当前版本 `0.2.8` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
 
 本次精确对齐 `com:fleet-observability:0.1.2`，接入 Servlet ERROR 分派再次拒绝时的唯一 HTTP 终态修复；认证、响应和日志安全字段合同保持。源码与测试通过后，目标进程和追踪/日志联结仍须单独读回验收。
 

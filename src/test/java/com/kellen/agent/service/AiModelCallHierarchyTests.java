@@ -28,7 +28,7 @@ class AiModelCallHierarchyTests {
         try (var telemetry = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()) {
             var observer = new AiModelCallObserver(new SimpleMeterRegistry(), telemetry.get("test"));
             var modelContext = new AtomicReference<String>();
-            Object result = observer.observePromptCall("qwen", "model", "questionnaire_reply", AiPromptSnapshot::unknown, prompt -> {
+            Object result = observer.observePromptCall("qwen", "model", "document_analysis", AiPromptSnapshot::unknown, prompt -> {
                 observer.observeStep("memory.retrieve", () -> "synthetic");
                 return (Supplier<ChatResponse>) () -> {
                     modelContext.set(Span.current().getSpanContext().getSpanId());
@@ -118,7 +118,7 @@ class AiModelCallHierarchyTests {
         try (var telemetry = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()) {
             var observer = new AiModelCallObserver(new SimpleMeterRegistry(), telemetry.get("test"));
             var failure = new AssertionError("synthetic");
-            org.assertj.core.api.Assertions.assertThatThrownBy(() -> observer.observeCall("qwen", "model", "questionnaire_reply", () -> {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> observer.observeCall("qwen", "model", "document_analysis", () -> {
                 throw failure;
             })).isSameAs(failure);
             assertThat(exporter.getFinishedSpanItems()).hasSize(2);

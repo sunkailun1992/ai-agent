@@ -12,7 +12,7 @@ version = '1.0.0'
 ```
 
 - 已经发布过的项目保持现有 `group` 坐标，不因为补文档或小版本升级强行迁移；修改 `group` 属于发布坐标迁移，必须单独评估 Maven 仓库、消费者依赖和回滚方案。
-- 非 Java 项目没有 Gradle `group`；如果存在 `package.json`、小程序上传版本或其它制品版本，递增规则仍按本规范执行。
+- 非 Java 项目没有 Gradle `group`；如果存在 `package.json`或其它制品版本，递增规则仍按本规范执行。
 - 构建制品 `version` 不等同于接口版本、Nacos dataId 版本、流量治理头 `X-Release-Version`、数据库乐观锁 `version` 字段。
 
 ## 什么时候改 version
