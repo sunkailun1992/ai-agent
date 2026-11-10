@@ -33,7 +33,8 @@ public final class StreamingCallCancellation {
     /** SDK 1.58.0 的 custom-client 分支跳过默认 timeout 初始化，须显式保持官方三个零超时。 */
     public static OkHttpClient googleHttpClient() {
         return new OkHttpClient.Builder().connectTimeout(Duration.ZERO).readTimeout(Duration.ZERO)
-                .writeTimeout(Duration.ZERO).eventListenerFactory(googleListener()).build();
+                .writeTimeout(Duration.ZERO).retryOnConnectionFailure(false)
+                .eventListenerFactory(googleListener()).build();
     }
 
     /** Google 同步创建 Call 时绑定当前订阅，监听器不会读取正文或认证信息。 */

@@ -112,13 +112,13 @@ class StreamingCancellationTransportTest {
         owner.close(); assertThat(call.isCanceled()).isFalse(); assertThat(leakedMarker).hasValue(null);
     }
 
-    @Test void googleTransportPreservesThePinnedSdkDefaults() {
+    @Test void googleTransportPreservesTimeoutAndTlsDefaultsWithoutAutomaticReconnect() {
         var google = StreamingCallCancellation.googleHttpClient();
         try {
             assertThat(google.connectTimeoutMillis()).isZero(); assertThat(google.readTimeoutMillis()).isZero();
             assertThat(google.writeTimeoutMillis()).isZero(); assertThat(google.callTimeoutMillis()).isZero();
             assertThat(google.hostnameVerifier()).isSameAs(new OkHttpClient().hostnameVerifier());
-            assertThat(google.retryOnConnectionFailure()).isEqualTo(new OkHttpClient().retryOnConnectionFailure());
+            assertThat(google.retryOnConnectionFailure()).isFalse();
         } finally { google.dispatcher().executorService().shutdown(); google.connectionPool().evictAll(); }
     }
 

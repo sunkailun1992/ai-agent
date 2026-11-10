@@ -1,7 +1,7 @@
 package com.kellen.agent.service;
 
 import com.google.genai.Client;
-import com.google.genai.types.HttpOptions;
+import com.kellen.agent.config.GoogleStreamingTransportConfiguration;
 import com.kellen.agent.controller.AgentController;
 import com.kellen.agent.memory.MemoryAgentClient;
 import com.kellen.rpc.memory.MemoryRetrievalRpcDTO;
@@ -86,6 +86,9 @@ class PatientAnalysisCancellationHttpTest {
     private volatile boolean google;
     private final CountDownLatch transportClosed = new CountDownLatch(1);
     private final AtomicInteger sent = new AtomicInteger();
+    private final AtomicInteger upstreamRequests = new AtomicInteger();
+    private volatile String upstreamPath;
+    private volatile String upstreamKey;
     private final List<ch.qos.logback.classic.spi.ILoggingEvent> logs = new CopyOnWriteArrayList<>();
     private ch.qos.logback.core.AppenderBase<ch.qos.logback.classic.spi.ILoggingEvent> appender;
 
@@ -94,6 +97,9 @@ class PatientAnalysisCancellationHttpTest {
         upstream = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         executor = Executors.newCachedThreadPool(); upstream.setExecutor(executor);
         upstream.createContext("/", exchange -> {
+            upstreamRequests.incrementAndGet();
+            upstreamPath = exchange.getRequestURI().getPath();
+            upstreamKey = exchange.getRequestHeaders().getFirst("x-goog-api-key");
             exchange.getRequestBody().readAllBytes();
             exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
             exchange.sendResponseHeaders(200, 0);
@@ -128,12 +134,15 @@ class PatientAnalysisCancellationHttpTest {
 
     @Test void googleDisconnectCancelsAnActiveModelHttpStream() throws Exception {
         google = true;
-        Client client = Client.builder().apiKey("synthetic-fixture")
-                .clientOptions(com.google.genai.types.ClientOptions.builder().customHttpClient(StreamingCallCancellation.googleHttpClient()).build())
-                .httpOptions(HttpOptions.builder().baseUrl(upstreamUrl()).apiVersion("v1beta").build()).build();
+        var properties = new org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiConnectionProperties();
+        properties.setApiKey("synthetic-fixture");
+        Client client = new GoogleStreamingTransportConfiguration().googleGenAiClient(properties, upstreamUrl() + "/proxy/gemini");
         model.delegate = GoogleGenAiChatModel.builder().genAiClient(client)
                 .options(GoogleGenAiChatOptions.builder().model("fixture").build()).build();
         cancellation();
+        assertThat(upstreamRequests).hasValue(1);
+        assertThat(upstreamPath).isEqualTo("/proxy/gemini/v1beta/models/fixture:streamGenerateContent");
+        assertThat(upstreamKey).isEqualTo("synthetic-fixture");
     }
 
     @Test void openAiDisconnectCancelsAnActiveModelHttpStream() throws Exception {

@@ -159,7 +159,7 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 管理端点使用既有运维令牌，模型 registry 与 SSE 终态观测、内部采集要求和回滚说明见 [监控采集与回滚](docs/fleet-observability.md)。
 
-当前版本 `0.2.8` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
+当前版本 `0.2.9` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
 
 本次精确对齐 `com:fleet-observability:0.1.2`，接入 Servlet ERROR 分派再次拒绝时的唯一 HTTP 终态修复；认证、响应和日志安全字段合同保持。源码与测试通过后，目标进程和追踪/日志联结仍须单独读回验收。
 
@@ -173,6 +173,8 @@ Servlet 入口捕获的不可变身份独立于线程状态传入 Memory adapter
 
 Spring AI 2.0.0 的 Google 同步 `ResponseStream` 会占用订阅线程，默认流适配未将取消绑定到 SDK HTTP 资源；OpenAI-compatible 的异步流也不能仅靠下游 Flux 取消来证明 HTTP 连接已关闭。`StreamingCancellationAdvisor` 在受限工作池订阅，并恢复本轮模型 trace；后续背压请求不排回阻塞的订阅线程，保证生成中的 SSE 可以持续写出。
 
-每次订阅持有独立 HTTP Call 句柄。Google 使用官方 `ClientOptions.customHttpClient` 监听本轮同步 Call，认证模式、credentials-uri、默认超时及 SDK retry 逻辑沿用固定版本的官方行为。OpenAI-compatible 通过请求级临时随机标记关联异步 Call，传输拦截器在出网前移除标记；原 options 和自定义头不被改写。正常完成、失败、取消和订阅装配失败均释放本轮句柄，不调用共享客户端的 `cancelAll`，也不关闭其他请求的客户端或连接池。成功读完或关闭的响应先解除 Call 绑定。
+每次订阅持有独立 HTTP Call 句柄。Google 使用官方 `ClientOptions.customHttpClient` 监听本轮同步 Call，认证模式、credentials-uri 和默认零超时保持。`0.2.9` 有意将 Google SDK 总尝试数改为 1、关闭其 OkHttp 连接失败重连，并只为 Google 模型设置上层零重试；不注册全局 RetryTemplate。OpenAI-compatible 通过请求级临时随机标记关联异步 Call，传输拦截器在出网前移除标记；原 options 和自定义头不被改写。正常完成、失败、取消和订阅装配失败均释放本轮句柄，不调用共享客户端的 `cancelAll`，也不关闭其他请求的客户端或连接池。成功读完或关闭的响应先解除 Call 绑定。
 
 `PatientAnalysisCancellationHttpTest` 用真实 Spring Boot HTTP、Agent Controller/Service、ChatClient 和 Google/OpenAI SDK 连接回环持续 SSE 替身：读取首帧时上游仍在生成，关闭客户端后核对模型取消、厂商 HTTP 断开、唯一终态和父子 trace。取消的用量不标成最终值。另有共享客户端并发隔离、先取消后创建 Call、句柄清理、默认认证模式与超时回归。真实厂商链路仍须单独验收；Servlet 断连的识别发生在后续写出或容器通知时。
+
+Google Developer API 可选 `ai.agent.google.base-url` 接入 native gateway；为空时使用 SDK 既有官方入口。代理 URI 应止于 `/gemini`，不带 `/v1beta` 或模型方法路径；现有 `spring.ai.google.genai.api-key` 可注入 scoped virtual key。参数归属、启动生效、版本与回滚边界见 [Google native gateway 接入](docs/google-native-gateway.md)。本轮只增加客户端能力和回环合成验收，没有修改或发布 Nacos，没有接入真实模型。
