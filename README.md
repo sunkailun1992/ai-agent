@@ -199,9 +199,11 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 管理端点使用既有运维令牌，模型 registry 与 SSE 终态观测、内部采集要求和回滚说明见 [监控采集与回滚](docs/fleet-observability.md)。
 
-当前版本 `0.3.1` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
+当前版本 `0.3.2` 精确消费 `com:fleet-observability:0.1.2`。共享 ECS 配置配套 `logging.structured.json.context.include=false`，固定成员 SPI 合并同名 MDC/KVP 后只写一次身份字段，保留实际 AI 用量和安全摘要，不输出自由 MDC、模型正文或原始异常。固定 `ai-agent.jar` 的 `bootJar` 把 `applicationVersion` 作为增量输入，构建后需读回真实 Manifest；IDEA 仍使用原生 Spring Boot Run/Debug，Gradle用于测试和打包。
 
 本次精确对齐 `com:fleet-observability:0.1.2`，接入 Servlet ERROR 分派再次拒绝时的唯一 HTTP 终态修复；认证、响应和日志安全字段合同保持。源码与测试通过后，目标进程和追踪/日志联结仍须单独读回验收。
+
+从 `0.3.2` 起，每次模型调用的安全元数据合并会保留已报告的终止原因：后续未知值（包括 SDK 的 `_UNKNOWN` 和安全回退 `other`）不能覆盖 `stop` 等已知终止原因，后续已知终止原因仍可更新；全程只有未知值时仍报告 `other`，完全未报告时不补造原因。真实 Spring AI 2.0/OpenAI SDK 4.39 回环 HTTP 回归证明，`stop` 后带空 `delta`、空 `finish_reason` 的兼容用量尾块会被框架转换为 `_UNKNOWN`，旧合并逻辑因此把最终 Span 改为 `other`；修复后保留 `stop` 及末次实际用量。空 `choices` 尾块、未知尾块、后续已知原因和全未知流分别覆盖。这是兼容尾块的源码与合成协议复现，不代表已确认某次实际供应商响应使用该精确形态；部署后的真实安全投影仍须单独验收。响应正文、SSE、用量、取消与重试策略均不由此合并规则改变。
 
 ### 终端身份与 Memory 租户
 

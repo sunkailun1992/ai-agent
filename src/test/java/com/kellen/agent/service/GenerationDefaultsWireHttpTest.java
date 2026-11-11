@@ -5,6 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kellen.agent.config.AgentProperties;
 import com.sun.net.httpserver.HttpServer;
 import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Timeout;
@@ -45,6 +50,9 @@ class GenerationDefaultsWireHttpTest {
     private HttpServer upstream;
     private java.util.concurrent.ExecutorService executor;
     private boolean fail;
+    private boolean usageWithChoice;
+    private String terminalFinish = "stop";
+    private String usageFinish;
 
     @BeforeEach void start() throws IOException {
         upstream = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -68,6 +76,12 @@ class GenerationDefaultsWireHttpTest {
                         data: [DONE]
 
                         """;
+                response = response.replace("\"finish_reason\":\"stop\"", "\"finish_reason\":\"" + terminalFinish + "\"");
+                if (usageWithChoice) {
+                    String finish = usageFinish == null ? "null" : "\"" + usageFinish + "\"";
+                    response = response.replace("\"choices\":[],\"usage\"",
+                            "\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":" + finish + "}],\"usage\"");
+                }
             } else {
                 response = """
                         {"id":"synthetic","object":"chat.completion","created":1,"model":"synthetic",
@@ -174,6 +188,41 @@ class GenerationDefaultsWireHttpTest {
             assertThat(properties.generationDefaultsSource()).isEqualTo(AgentProperties.GenerationDefaultsSource.SERVICE);
         }
         assertThat(received).isEmpty();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "stop,NO_CHOICE,stop", "stop,NULL,stop", "stop,UNKNOWN,stop", "stop,other,stop",
+            "stop,length,length", "UNKNOWN,stop,stop", "UNKNOWN,UNKNOWN,other"
+    })
+    void terminalReasonSurvivesRealSdkUsageTailsInTheProductionObserver(String terminal, String tail, String expected) {
+        terminalFinish = terminal;
+        usageWithChoice = !tail.equals("NO_CHOICE");
+        usageFinish = tail.equals("NULL") ? null : tail;
+        var exporter = InMemorySpanExporter.create();
+        try (var telemetry = SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(exporter)).build()) {
+            var observer = new AiModelCallObserver(new SimpleMeterRegistry(), telemetry.get("synthetic-test"));
+            context("qwen", "DEPLOYMENT").run(context -> {
+                assertThat(context).hasNotFailed();
+                ChatClient client = context.getBean(AiChatClientProvider.class).selection("qwen").chatClient();
+                var responses = observer.observeStream("qwen", "synthetic-qwen-alias", "patient_analysis",
+                        () -> client.prompt("synthetic-input").stream().chatResponse()).collectList().block(Duration.ofSeconds(8));
+                assertThat(received).hasSize(1);
+                assertThat(responses).isNotEmpty();
+                if (usageWithChoice && (usageFinish == null || tail.equals("UNKNOWN") || tail.equals("other"))) {
+                    // Spring AI 将 SDK 的空值或未知枚举转成 _UNKNOWN；必须经过真实链路再验证合并规则。
+                    assertThat(responses.get(responses.size() - 1).getResult().getMetadata().getFinishReason()).isEqualTo("_UNKNOWN");
+                }
+                var model = exporter.getFinishedSpanItems().stream()
+                        .filter(span -> span.getName().equals("ai.model.call")).toList();
+                assertThat(model).hasSize(1);
+                assertThat(model.get(0).getAttributes().get(AttributeKey.stringKey("outcome"))).isEqualTo("success");
+                assertThat(model.get(0).getAttributes().get(AttributeKey.longKey("gen_ai.usage.input_tokens"))).isEqualTo(1L);
+                assertThat(model.get(0).getAttributes().get(AttributeKey.longKey("gen_ai.usage.output_tokens"))).isEqualTo(1L);
+                assertThat(model.get(0).getAttributes().get(AttributeKey.stringArrayKey("gen_ai.response.finish_reasons")))
+                        .containsExactly(expected);
+            });
+        }
     }
 
     private String invoke(ChatClient client, boolean stream) {

@@ -79,7 +79,11 @@ final class AiResponseMetadata {
             String finish = generation.getMetadata().getFinishReason();
             if (finish != null && !finish.isBlank()) {
                 String normalized = finish.toLowerCase(java.util.Locale.ROOT);
-                finishReason = FINISH_REASONS.contains(normalized) ? normalized : "other";
+                String reported = FINISH_REASONS.contains(normalized) ? normalized : "other";
+                // 兼容流的用量尾块可能带 UNKNOWN；未知值不能覆盖已报告的终止原因。
+                if (finishReason == null || !"other".equals(reported)) {
+                    finishReason = reported;
+                }
             }
         }
     }
