@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Conditional(AgentGatewayModeCondition.class)
 public class AgentSessionVerifier {
-    @DubboReference(check = false, lazy = true, timeout = 3000, retries = 0)
+    @DubboReference(init = false, check = false, lazy = true, timeout = 3000, retries = 0)
     private AuthSessionRpcService sessions;
     public AgentSessionVerifier() { }
     public AgentSessionVerifier(AuthSessionRpcService sessions) { this.sessions = sessions; }

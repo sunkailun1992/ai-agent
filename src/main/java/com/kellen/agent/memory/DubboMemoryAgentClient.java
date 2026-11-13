@@ -23,7 +23,7 @@ public class DubboMemoryAgentClient implements MemoryAgentClient {
 
     private static final Logger log = LoggerFactory.getLogger(DubboMemoryAgentClient.class);
 
-    @DubboReference(check = false, timeout = 3000, parameters = {"traffic.canary.enabled", "true"})
+    @DubboReference(init = false, check = false, timeout = 3000, parameters = {"traffic.canary.enabled", "true"})
     private MemoryRetrievalRpcService retrievalRpcService;
 
     @Override

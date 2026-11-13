@@ -20,6 +20,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,8 +39,7 @@ class NacosModelConfigurationTest {
                 new FileSystemResource("src/main/resources/application-" + profile + ".yml"))) {
             environment.getPropertySources().addFirst(source);
         }
-        assertThat(Binder.get(environment).bind("spring.config.import", Bindable.listOf(String.class)).get())
-                .containsExactly(
+        var imports = new ArrayList<>(List.of(
                         "optional:nacos:logging.yml?refreshEnabled=true",
                         "optional:nacos:reuse-configuration.yaml?refreshEnabled=true",
                         "optional:nacos:traffic-governance.yaml?refreshEnabled=true",
@@ -47,7 +48,12 @@ class NacosModelConfigurationTest {
                         "optional:nacos:swagger.yaml?refreshEnabled=true",
                         "optional:nacos:dubbo.yaml?refreshEnabled=true",
                         "optional:nacos:ai-agent-spring.yaml?refreshEnabled=true",
-                        "optional:nacos:a2a.yaml?refreshEnabled=true");
+                        "optional:nacos:a2a.yaml?refreshEnabled=true"));
+        if ("dev".equals(profile)) {
+            imports.add("nacos:local-canary.yaml?refreshEnabled=false");
+        }
+        assertThat(Binder.get(environment).bind("spring.config.import", Bindable.listOf(String.class)).get())
+                .containsExactlyElementsOf(imports);
     }
 
     @ParameterizedTest

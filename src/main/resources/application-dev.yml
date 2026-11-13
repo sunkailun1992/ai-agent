@@ -59,3 +59,38 @@ spring:
       - "optional:nacos:ai-agent-spring.yaml?refreshEnabled=true"
       # a2a.yaml：Nacos AI Registry / A2A AgentCard 公共入口配置。
       - "optional:nacos:a2a.yaml?refreshEnabled=true"
+      # local-canary.yaml：个人本地灰度标签与授权，仅在 github-dev 的 dev profile 启动时读取。
+      - "nacos:local-canary.yaml?refreshEnabled=false"
+
+---
+
+# 本地灰度实例使用独立服务名，保留原 Spring 应用名、配置和指标维度。
+spring:
+  cloud:
+    nacos:
+      discovery:
+        # 按当前应用名和灰度标签生成 Nacos 发现名，普通请求仍匹配稳定服务名。
+        service: ${spring.application.name}-canary-${local-canary.tag:kellen-local}
+        # 共享配置缺失或未就绪时不注册本地 HTTP 实例。
+        register-enabled: ${local-canary.ready:false}
+        metadata:
+          # 将本地灰度泳道写入实例元数据，便于服务发现和日志诊断。
+          "[traffic.lane]": ${traffic.governance.instance.lane:canary}
+          # 写入单独的灰度标签，授权规则和发现名仍决定路由。
+          "[canary.tag]": ${local-canary.tag:kellen-local}
+
+traffic:
+  governance:
+    canary:
+      # 灰度实例只接收校验通过的授权，缺少授权的请求拒绝执行。
+      require-grant: true
+
+ai:
+  agent:
+    registry:
+      # 禁止本地副本启动时发布 AgentCard，保留现有业务签名使用的地址配置。
+      enabled: false
+  prompts:
+    sync:
+      # 禁止本地副本启动时发布 Prompt，读取远端 Prompt 不受此项限制。
+      enabled: false
