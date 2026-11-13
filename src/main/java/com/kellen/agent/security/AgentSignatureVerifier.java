@@ -10,7 +10,8 @@ import org.springframework.context.annotation.Conditional;
 @Component
 @Conditional(AgentGatewayModeCondition.class)
 public class AgentSignatureVerifier {
-    @DubboReference(check = false, lazy = true, timeout = 3000, retries = 0)
+    @DubboReference(check = false, lazy = true, timeout = 3000, retries = 0,
+            parameters = {"traffic.canary.enabled", "true"})
     private AuthOpenApiRpcService auth;
 
     public AgentSignatureVerifier() {

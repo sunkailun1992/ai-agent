@@ -3,6 +3,9 @@ package com.kellen.agent.security;
 import com.kellen.agent.config.AgentRegistryProperties;
 import com.kellen.agent.config.AgentSecurityProperties;
 import com.kellen.rpc.auth.AuthOpenApiRpcService;
+import com.kellen.rpc.auth.AuthSessionIdentityRpcDTO;
+import com.kellen.traffic.CanaryContext;
+import com.kellen.traffic.CanaryGrant;
 import com.kellen.rpc.auth.OpenApiSignatureVerifyRpcRequest;
 import org.apache.dubbo.rpc.RpcException;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +49,9 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "spring.cloud.nacos.discovery.enabled=false", "spring.cloud.nacos.config.import-check.enabled=false",
                 "ai.agent.registry.public-base-url=https://gateway.example.invalid",
                 "ai.agent.security.provider-code=kellen-agent", "ai.agent.security.allowed-client-ids=kellen-ai,kellen.ai",
+                "traffic.governance.canary.enabled=true", "traffic.governance.canary.service=ai-agent",
+                "traffic.governance.canary.http-tag=blue",
+                "traffic.governance.canary.signing-key=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
                 "ai.agent.security.max-body-bytes=1024"})
 class AgentServiceAuthenticationHttpTest {
     @LocalServerPort int port;
@@ -58,6 +64,50 @@ class AgentServiceAuthenticationHttpTest {
         auth.strictAccepted = false;
         String path = "/api/agents/echo";
         assertThat(send("POST", path, "private", signed("POST", path, "private")).statusCode()).isEqualTo(401);
+    }
+
+    @Test void verifiedCanaryIsAvailableBeforeBusinessAuthentication() throws Exception {
+        String path = "/api/agents/patient-analysis/stream";
+        String grant = canaryGrant("ai-agent");
+        HttpRequest request = HttpRequest.newBuilder(url(path)).headers(signed("POST", path, "ok"))
+                .header(CanaryGrant.HEADER, grant).header("Authorization", "Bearer synthetic-canary-session")
+                .POST(HttpRequest.BodyPublishers.ofString("ok")).build();
+        assertThat(http.send(request, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(200);
+        assertThat(auth.canaryTag).isEqualTo("blue");
+        assertThat(send("POST", "/api/agents/echo", "ok", signed("POST", "/api/agents/echo", "ok"))
+                .statusCode()).isEqualTo(200);
+        assertThat(auth.canaryTag).isNull();
+    }
+
+    @Test void canaryForAnotherServiceIsRejectedBeforeBusinessAuthentication() throws Exception {
+        String path = "/api/agents/patient-analysis/stream";
+        HttpRequest request = HttpRequest.newBuilder(url(path)).headers(signed("POST", path, "ok"))
+                .header(CanaryGrant.HEADER, canaryGrant("report"))
+                .POST(HttpRequest.BodyPublishers.ofString("ok")).build();
+        assertThat(http.send(request, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(403);
+        assertThat(auth.calls).hasValue(0);
+    }
+
+    @Test void canaryDoesNotReplaceBusinessAuthentication() throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(url("/api/agents/patient-analysis/stream"))
+                .header(CanaryGrant.HEADER, canaryGrant("ai-agent"))
+                .POST(HttpRequest.BodyPublishers.ofString("ok")).build();
+        assertThat(http.send(request, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(401);
+        assertThat(auth.calls).hasValue(0);
+    }
+
+    @Test void patientAnalysisCanaryDoesNotAuthorizeOtherAgentOperations() throws Exception {
+        String path = "/api/agents/echo";
+        HttpRequest request = HttpRequest.newBuilder(url(path)).headers(signed("POST", path, "ok"))
+                .header(CanaryGrant.HEADER, canaryGrant("ai-agent"))
+                .POST(HttpRequest.BodyPublishers.ofString("ok")).build();
+        assertThat(http.send(request, HttpResponse.BodyHandlers.ofString()).statusCode()).isEqualTo(403);
+        assertThat(auth.calls).hasValue(0);
+    }
+
+    private static String canaryGrant(String service) {
+        return CanaryGrant.issue(service, "blue", java.time.Instant.now().plusSeconds(30),
+                "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     }
 
     @Test void anonymousCannotReachProtectedControllerOrRoot() throws Exception {
@@ -217,15 +267,27 @@ class AgentServiceAuthenticationHttpTest {
     @ImportAutoConfiguration({TomcatServletWebServerAutoConfiguration.class, DispatcherServletAutoConfiguration.class,
             WebMvcAutoConfiguration.class, HttpMessageConvertersAutoConfiguration.class})
     @EnableConfigurationProperties({AgentRegistryProperties.class, AgentSecurityProperties.class})
-    @Import({AgentServiceAuthenticationFilter.class, FixtureController.class})
+    @Import({AgentCanaryFilter.class, AgentServiceAuthenticationFilter.class, FixtureController.class})
     static class Config {
         @Bean StubAuth auth() { return new StubAuth(); }
         @Bean AgentSignatureVerifier verifier(StubAuth auth) { return new AgentSignatureVerifier(auth); }
+        @Bean AgentSessionVerifier sessionVerifier() {
+            return new AgentSessionVerifier(token -> {
+                if (!"synthetic-canary-session".equals(token)) {
+                    throw new SecurityException("synthetic session rejected");
+                }
+                var result = new AuthSessionIdentityRpcDTO();
+                result.setUserId("fixture-user");
+                result.setTenantId("fixture-tenant");
+                return result;
+            });
+        }
+
     }
 
     @RestController
     static class FixtureController {
-        @PostMapping({"/api/agents/echo", "/api/agents/other"}) String echo(@RequestBody String body) { return body; }
+        @PostMapping({"/api/agents/echo", "/api/agents/other", "/api/agents/patient-analysis/stream"}) String echo(@RequestBody String body) { return body; }
         @PostMapping("/api/agents/replay") String replay(HttpServletRequest request) throws java.io.IOException {
             String first = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
             return first + "|" + request.getReader().readLine();
@@ -248,12 +310,15 @@ class AgentServiceAuthenticationHttpTest {
         volatile boolean unavailable;
         volatile boolean strictAccepted = true;
         volatile OpenApiSignatureVerifyRpcRequest last;
+        volatile String canaryTag;
         @Override public void verifyOpenApiSignature(OpenApiSignatureVerifyRpcRequest request) {
             throw new AssertionError("Agent must not use the optional-signature RPC");
         }
         @Override public boolean verifyRequiredOpenApiSignature(OpenApiSignatureVerifyRpcRequest request) {
             if (!strictAccepted) { return false; }
             calls.incrementAndGet(); last = request;
+            var canary = CanaryContext.get();
+            canaryTag = canary == null ? null : canary.grant().tag();
             if (unavailable) { throw new RpcException(RpcException.NETWORK_EXCEPTION, "synthetic unavailable"); }
             String expected = hmac(request.getClientId() + "\n" + request.getTimestamp() + "\n" + request.getNonce() + "\n" + request.getBody());
             if (!expected.equals(request.getSignature()) || !nonces.add(request.getNonce())) { throw new SecurityException("synthetic rejection"); }

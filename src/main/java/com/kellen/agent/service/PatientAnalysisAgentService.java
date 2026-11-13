@@ -1,5 +1,7 @@
 package com.kellen.agent.service;
 
+import com.kellen.traffic.CanaryContext;
+
 import com.kellen.agent.dto.AgentChatRequest;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
@@ -55,6 +57,7 @@ public class PatientAnalysisAgentService {
      * @return 模型输出文本流。
      */
     public Flux<String> stream(AgentChatRequest request) {
+        CanaryContext.Snapshot canary = CanaryContext.get();
         Context parent = Context.current();
         AgentRequestIdentity identity = AgentRequestIdentity.current(request);
         return Flux.defer(() -> {
@@ -68,7 +71,7 @@ public class PatientAnalysisAgentService {
                             .prompt()
                             .system(prompt.template())
                             .user(user -> {
-                                user.text(userText(request, message, identity));
+                                user.text(CanaryContext.callWith(canary, () -> userText(request, message, identity)));
                                 media(request.effectiveAttachments()).forEach(item -> user.media(item.mimeType(), item.resource()));
                             });
                     return spec.stream().chatResponse();

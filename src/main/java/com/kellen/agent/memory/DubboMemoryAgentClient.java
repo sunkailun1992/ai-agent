@@ -1,5 +1,7 @@
 package com.kellen.agent.memory;
 
+import com.kellen.traffic.CanaryContext;
+
 import com.kellen.rpc.memory.MemoryCandidateRpcRequest;
 import com.kellen.rpc.memory.MemoryRetrievalRpcDTO;
 import com.kellen.rpc.memory.MemoryRetrievalRpcRequest;
@@ -21,7 +23,7 @@ public class DubboMemoryAgentClient implements MemoryAgentClient {
 
     private static final Logger log = LoggerFactory.getLogger(DubboMemoryAgentClient.class);
 
-    @DubboReference(check = false, timeout = 3000)
+    @DubboReference(check = false, timeout = 3000, parameters = {"traffic.canary.enabled", "true"})
     private MemoryRetrievalRpcService retrievalRpcService;
 
     @Override
@@ -45,6 +47,9 @@ public class DubboMemoryAgentClient implements MemoryAgentClient {
             attachments.setAttachment("tenantId", identity.tenantId());
             return retrievalRpcService.retrieve(request);
         } catch (RuntimeException exception) {
+            if (CanaryContext.get() != null) {
+                throw new IllegalStateException("AI memory canary retrieval unavailable", exception);
+            }
             log.warn("ai-memory 召回失败，已跳过记忆上下文: {}", safeMessage(exception));
             return empty("memory retrieval failed");
         } finally {
