@@ -6,7 +6,7 @@
 
 ## 通用规则入口
 
-先核对 `BRANCHING_SPEC.md` 的 main/test/preprod、完整功能交付与清理保护，再按 `VERSIONING_SPEC.md` 做版本进位和已用制品核对；安全关键改动须有独立风险验证，Review 是补充。纯规范变更不提升业务版本、不机械重跑 Java 测试。
+先核对 `BRANCHING_SPEC.md` 的 main 保护、完整功能交付与清理，再按 `VERSIONING_SPEC.md` 做版本进位和已用制品核对；安全关键改动须有独立风险验证，Review 是补充。纯规范变更不提升业务版本、不机械重跑 Java 测试。
 
 ## 阅读顺序
 
