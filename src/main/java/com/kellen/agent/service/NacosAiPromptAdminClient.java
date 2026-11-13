@@ -26,7 +26,7 @@ import java.util.Optional;
 /**
  * Nacos AI Prompt 管理端客户端。
  *
- * <p>Nacos 3.2.2 Java AI SDK 暂未暴露 Prompt 发布接口，因此启动同步通过
+ * <p>Nacos 3.2.2 与 3.3.0 的 Java AI SDK 均未暴露 Prompt 发布接口（3.3.0 的 PromptService 只有读取与订阅），因此启动同步通过
  * Nacos 3.x Admin API 执行受控发布。</p>
  */
 @Component

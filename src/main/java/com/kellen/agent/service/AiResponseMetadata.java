@@ -77,6 +77,11 @@ final class AiResponseMetadata {
                 chunks = Math.min(MAX_REPORTED_COUNT, chunks + 1);
             }
             String finish = generation.getMetadata().getFinishReason();
+            if ((finish == null || finish.isBlank())
+                    && "_UNKNOWN".equals(String.valueOf(output.getMetadata().get("finishReason")))) {
+                // Spring AI 2.0.2 起把 SDK 的空值/未知枚举报告为 null，原始 _UNKNOWN 只留在消息元数据；仍按未知值处理。
+                finish = "_UNKNOWN";
+            }
             if (finish != null && !finish.isBlank()) {
                 String normalized = finish.toLowerCase(java.util.Locale.ROOT);
                 String reported = FINISH_REASONS.contains(normalized) ? normalized : "other";

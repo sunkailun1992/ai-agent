@@ -210,8 +210,10 @@ class GenerationDefaultsWireHttpTest {
                 assertThat(received).hasSize(1);
                 assertThat(responses).isNotEmpty();
                 if (usageWithChoice && (usageFinish == null || tail.equals("UNKNOWN") || tail.equals("other"))) {
-                    // Spring AI 将 SDK 的空值或未知枚举转成 _UNKNOWN；必须经过真实链路再验证合并规则。
-                    assertThat(responses.get(responses.size() - 1).getResult().getMetadata().getFinishReason()).isEqualTo("_UNKNOWN");
+                    // Spring AI 2.0.2 起把 SDK 的空值或未知枚举报告为 null，原始 _UNKNOWN 只留在消息元数据；必须经过真实链路再验证合并规则。
+                    var last = responses.get(responses.size() - 1).getResult();
+                    assertThat(last.getMetadata().getFinishReason()).isNull();
+                    assertThat(String.valueOf(last.getOutput().getMetadata().get("finishReason"))).isEqualTo("_UNKNOWN");
                 }
                 var model = exporter.getFinishedSpanItems().stream()
                         .filter(span -> span.getName().equals("ai.model.call")).toList();

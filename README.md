@@ -207,7 +207,7 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 ### 终端身份与 Memory 租户
 
-网关模式的患者分析入口先要求允许的服务客户端通过原始请求 HMAC 验签，再通过 `com:rpc-api:1.0.8` 的 `AuthSessionRpcService` 独立验证 Authorization 中的终端 User access JWT。已验证 user/tenant 必须与签名正文一致，否则在模型/Memory 调用前拒绝。服务签名、`caller`、正文租户和 `sourceTenantId` 均不能独自建立用户授权；token 不放入正文、返回 DTO、日志或异常。
+网关模式的患者分析入口先要求允许的服务客户端通过原始请求 HMAC 验签，再通过 `com:rpc-api:1.0.9` 的 `AuthSessionRpcService` 独立验证 Authorization 中的终端 User access JWT。已验证 user/tenant 必须与签名正文一致，否则在模型/Memory 调用前拒绝。服务签名、`caller`、正文租户和 `sourceTenantId` 均不能独自建立用户授权；token 不放入正文、返回 DTO、日志或异常。
 
 Servlet 入口捕获的不可变身份独立于线程状态传入 Memory adapter；每次 RPC 在实际执行线程绑定 canonical `tenantId` attachment，并在成功、失败时恢复旧值。`sourceTenantId` 只是业务来源分区，不覆盖授权租户。旧内网模式或没有可信身份的直接调用可执行不带 scoped Memory 的模型路径，不从 DTO 默认值恢复租户；候选记忆写入当前没有可信授权入口，因此失败关闭。
 

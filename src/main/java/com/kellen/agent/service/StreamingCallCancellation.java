@@ -63,15 +63,17 @@ public final class StreamingCallCancellation {
             if (body == null) { owner.release(chain.call()); return response; }
             // 成功读完/关闭的 Call 已完成，不应在终态清理时再标成 cancelled。
             BufferedSource source = Okio.buffer(new ForwardingSource(body.source()) {
+                private volatile boolean exhausted;
                 @Override public long read(okio.Buffer sink, long byteCount) throws IOException {
                     try {
                         long count = super.read(sink, byteCount);
-                        if (count == -1) owner.release(chain.call());
+                        if (count == -1) { exhausted = true; owner.release(chain.call()); }
                         return count;
                     } catch (IOException failure) { owner.release(chain.call()); throw failure; }
                 }
                 @Override public void close() throws IOException {
-                    try { super.close(); } finally { owner.release(chain.call()); }
+                    // 未读到结尾就关闭即放弃本流（Spring AI 2.0.2 起下游取消会先关闭响应）；只关正文不会及时断开连接，须取消本轮 Call。
+                    try { if (!exhausted) chain.call().cancel(); super.close(); } finally { owner.release(chain.call()); }
                 }
             });
             return response.newBuilder().body(new ResponseBody() {

@@ -25,7 +25,7 @@
 
 - 项目名称：`ai-agent`
 - 项目类型：AI Agent 执行层服务
-- 技术栈：Java 17、Spring Boot 4、Spring AI 2、Spring Cloud Alibaba、Nacos、Dubbo、Gradle Wrapper、`com:rpc-api`
+- 技术栈：Java 21、Spring Boot 4、Spring AI 2、Spring Cloud Alibaba、Nacos、Dubbo、Gradle Wrapper、`com:rpc-api`
 - 外部模型：Google Gemini、DeepSeek/OpenAI-compatible、通义千问 DashScope/OpenAI-compatible
 - 核心职责：承载可拆分的 Spring AI Agent 执行逻辑，对外提供患者分析与报告解读 Agent 接口
 - 核心风险：模型 Provider 选错、Prompt 污染、外部媒体 URL SSRF、密钥泄露、患者资料越权、日志输出用户隐私、把主 `ai` 服务的会话状态误搬到 Agent 层

@@ -41,7 +41,7 @@ import java.net.URI;
 public class GoogleStreamingTransportConfiguration {
     private static final Logger log = LoggerFactory.getLogger(GoogleStreamingTransportConfiguration.class);
 
-    /** 保持 Spring AI 2.0.0 官方自动配置的模式选择、空值检查与 credentials-uri 读取语义。 */
+    /** 保持 Spring AI 官方自动配置的模式选择、空值检查与 credentials-uri 读取语义（2.0.0 与 2.0.2 的官方实现逐字一致，2026-11-13 核对）。 */
     @Bean
     @ConditionalOnMissingBean(Client.class)
     public Client googleGenAiClient(GoogleGenAiConnectionProperties properties,

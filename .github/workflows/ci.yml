@@ -25,15 +25,15 @@ jobs:
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
           cache: gradle
 
       - name: Checkout rpc-api dependency
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: sunkailun1992/rpc-api
-          # Match com:rpc-api:1.0.8 exactly when dependency main advances.
-          ref: 1f7d3ba94b50a3322f44f12a8fa3019df0cfe6b5
+          # Match com:rpc-api:1.0.9 exactly when dependency main advances.
+          ref: 8021adbcae7cf1c8c1bd157bf57d482c6fa439ac
           path: .ci-rpc-api
 
       - name: Hide CI dependency checkout from scans
@@ -49,8 +49,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: sunkailun1992/utils
-          # Match com:traffic-canary:0.1.0 and com:fleet-observability:0.1.3 exactly when dependency main advances.
-          ref: 844aaede8842884e6a6c436301f733045accb949
+          # Match com:traffic-canary:0.1.1 and com:fleet-observability:0.1.4 exactly when dependency main advances.
+          ref: 33a648dee9df256c494f0e61e59070c924fe90d4
           path: .ci-utils
 
       - name: Publish lightweight dependencies to Maven Local
