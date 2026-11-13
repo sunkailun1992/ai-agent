@@ -9,7 +9,9 @@ import org.springframework.stereotype.Component;
 @Component
 @Conditional(AgentGatewayModeCondition.class)
 public class AgentSessionVerifier {
-    @DubboReference(init = false, check = false, lazy = true, timeout = 3000, retries = 0)
+    // 本机灰度通道内也校验访问令牌：显式参与灰度，携带入站授权只选同标签 user；稳定请求仍走稳定 user。
+    @DubboReference(init = false, check = false, lazy = true, timeout = 3000, retries = 0,
+            parameters = {"traffic.canary.enabled", "true"})
     private AuthSessionRpcService sessions;
     public AgentSessionVerifier() { }
     public AgentSessionVerifier(AuthSessionRpcService sessions) { this.sessions = sessions; }

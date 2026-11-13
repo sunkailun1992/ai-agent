@@ -52,8 +52,9 @@ class DubboReferenceStartupTest {
                     .containsEntry("traffic.canary.enabled", "true");
             assertThat(references.get(MemoryRetrievalRpcService.class).getParameters())
                     .containsEntry("traffic.canary.enabled", "true");
+            // 本机灰度通道内也校验访问令牌：会话校验同样走灰度 user，本机只有灰度 user 时稳定路由会找不到提供方。
             assertThat(references.get(AuthSessionRpcService.class).getParameters())
-                    .doesNotContainKey("traffic.canary.enabled");
+                    .containsEntry("traffic.canary.enabled", "true");
 
             var signatureVerifier = context.getBean(AgentSignatureVerifier.class);
             var signature = new OpenApiSignatureVerifyRpcRequest();
