@@ -101,7 +101,7 @@ ai:
 - `swagger.yaml`
 - `dubbo.yaml`
 - `ai-agent-spring.yaml`
-- `a2a.yaml`
+- `local-canary.yaml`（仅 dev profile）
 
 当前 fleet 的服务业务配置和 `{svc}-spring.yaml` 已统一放在 `DEFAULT_GROUP`。
 

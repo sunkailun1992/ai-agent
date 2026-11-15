@@ -47,8 +47,7 @@ class NacosModelConfigurationTest {
                         "nacos:security-jwt.yaml?refreshEnabled=true",
                         "optional:nacos:swagger.yaml?refreshEnabled=true",
                         "optional:nacos:dubbo.yaml?refreshEnabled=true",
-                        "optional:nacos:ai-agent-spring.yaml?refreshEnabled=true",
-                        "optional:nacos:a2a.yaml?refreshEnabled=true"));
+                        "optional:nacos:ai-agent-spring.yaml?refreshEnabled=true"));
         if ("dev".equals(profile)) {
             imports.add("nacos:local-canary.yaml?refreshEnabled=false");
         }
