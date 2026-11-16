@@ -63,7 +63,7 @@
 - 多模态附件 URL 默认不可信，必须限制协议、MIME、远端 Content-Type、数量和大小；不得支持本地文件路径、classpath、ftp、jar 等协议。
 - `application.yml` 只保留本地启动和 Nacos import 入口。模型部署、上游 provider 凭据与调用治理以 LiteLLM 原生控制台为唯一源；Agent 通过私有 OS 环境持有自己的最小权限 virtual key，Nacos 服务配置只引用占位符与网关连接信息。经明确记录的未迁移 provider 可暂保原直连凭据，但不能据此恢复共享模型密钥导入。数据库、注册发现等基础设施配置继续由 Nacos 管理，所有真实值不得进入 Git。
 - `ai-agent-spring.yaml` 位于当前全局 Nacos 配置 group `DEFAULT_GROUP`；不要再新增 `group=test` 的服务配置引用。
-- 当前 `ai-agent` 不直接维护业务库 DDL；如果后续接入 PostgreSQL、MyBatis-Plus DDL 与 Seata AT，首次启动空库前必须先在目标业务库手动执行 `../utils/src/main/resources/db/postgresql/common-infra-schema.sql`，不能依赖应用首次启动自动创建 `undo_log`。
+- 当前 `ai-agent` 不使用业务数据库；如果后续接入 PostgreSQL，表结构（含 Seata AT 的 `undo_log`）只由本服务 `src/main/resources/db/migration` 的 Flyway 迁移管理，新库保持空库，由首次启动时的 Flyway 建表，不手工执行任何公共脚本；数据源块固定 `seata: true`，utils 在建数据源之前先执行迁移。
 - 新增本服务对外 Controller、服务前缀，或新增后续独立 Agent 服务需要经网关访问时，必须同步评估 `../gateway` 的 Nacos `gateway-spring.yaml`；需要 Swagger UI 聚合的服务要先保证对应网关文档路径返回 200，再加入 `springdoc.swagger-ui.urls`。
 - 跨服务 Dubbo RPC 接口和 DTO 统一维护在同级 `../rpc-api`；`ai-agent` 只实现或调用契约，不在本服务或 `utils` 复制接口定义。
 - 本项目不得引入交易、K 线、下单、账户、行情、Discord、Apple 订阅等量化业务能力。
