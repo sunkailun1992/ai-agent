@@ -46,7 +46,8 @@ class PatientAnalysisObservationTests {
 
     @Test void failedModelPropagatesFailureWithoutLoggingExceptionContent(CapturedOutput output) {
         assertThat(environment.getProperty("logging.level.org.springframework.ai.chat.model.MessageAggregator")).isEqualTo("OFF");
-        assertThat(environment.getProperty("logging.structured.format.console")).isEqualTo("ecs");
+        // 共享 logging.yml 的控制台不设结构化格式（文本输出，不经白名单），下面对输出的断言直接证明代码没有写出异常或用户内容。
+        assertThat(environment.getProperty("logging.structured.format.console")).isNull();
         model.output = Flux.error(new IllegalStateException("sensitive-error-marker"));
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.stream(request()).collectList().block())
                 .isInstanceOf(IllegalStateException.class).hasMessage("sensitive-error-marker");
