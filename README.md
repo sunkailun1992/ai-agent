@@ -55,7 +55,7 @@
 
 - MyBatis-Plus / JDBC / MySQL
 - Redis
-- RabbitMQ
+- RocketMQ
 - Seata
 - XXL-JOB
 - Elasticsearch

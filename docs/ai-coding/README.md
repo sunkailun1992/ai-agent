@@ -29,7 +29,7 @@
 
 - `ai-agent` 是模型执行层，不保存业务会话、聊天记忆、审计数据或文件元数据。
 - 当前保留 Spring AI、Nacos discovery/config、Web/WebFlux 和 Actuator。
-- 当前不引入 MySQL、MyBatis-Plus、Redis、RabbitMQ、Seata、XXL-JOB、Elasticsearch 或 Qdrant。
+- 当前不引入 MySQL、MyBatis-Plus、Redis、RocketMQ、Seata、XXL-JOB、Elasticsearch 或 Qdrant。
 - 主调用链保持 `AgentController -> Agent Service -> AiChatClientProvider`。
 - 模型 Key 和 Provider 配置只放 Nacos 配置中心或环境变量。
 - 分支命名、短分支生命周期、release/hotfix、tag 和分支清理按 `BRANCHING_SPEC.md` 处理。
