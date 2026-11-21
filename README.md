@@ -215,6 +215,8 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 `0.4.2` 去掉 dev、test、prod 三套配置里 Nacos 账号与口令的默认值（原为 `nacos`，即 Nacos 管理员账号）：`custom.nacos-username`、`custom.nacos-password` 只引用 `GITHUB_NACOS_USERNAME`、`GITHUB_NACOS_PASSWORD`，缺值时启动即失败，不再静默以管理员登录（CWE-1392 默认凭据）；值由私有环境提供（IDEA 的 env 文件、Jar 的 application.properties 或容器同名环境变量）。
 
+`0.4.3` 将 `com:utils` 升到 `2.0.6`：服务没配受众时只收受众含 `github-api` 的令牌（落实“受众默认 github-api”，漏配不再变成不校验受众）；本服务的 Nacos 配置照旧显式写受众，行为不变。
+
 ### 终端身份与 Memory 租户
 
 全部 `/api/agents/**` 由 utils 的资源服务器保护：只收 ai 经 RFC 8693 令牌交换取得的 Keycloak 令牌（受众 `github-ai-agent`、`azp=github-ai`、RS256），网关签给业务后端的 `github-api` 令牌 401，别的客户端签的 403。用户取令牌的 `user_id`，活动租户由 user 服务的业务上下文核实（`X-Tenant-Id` 只能选用户所属的租户，停用用户与他人租户 403）；`AgentRequestIdentity.current` 还要求请求正文的 user/tenant 与之一致，否则在模型/Memory 调用前 403。`X-Open-*` 等旧 HMAC 头一律不再起作用，`caller`、正文租户和 `sourceTenantId` 均不能建立用户授权；令牌不放入正文、返回 DTO、日志或异常。
