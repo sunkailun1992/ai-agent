@@ -25,7 +25,7 @@
 | 本地引导 | `application*.yml`，私有 `config/application-dev.properties` | 连接 Nacos 前需要的服务与环境入口；私有文件不进 Git |
 | 共享变量 | `reuse-configuration.yaml` | 跨文件引用的中间件地址、Dubbo 分组等 `custom.*` 变量 |
 | 共享基础设施 | `redis.yaml`、`dubbo.yaml`、`mybatis-plus.yaml`、`seata.yaml` | 中间件连接、隔离边界及模块开关 |
-| 安全与可观测性 | `security-auth.yaml`、`security-jwt.yaml`、`actuator.yaml`、`logging.yml`、`traffic-governance.yaml`、`local-canary.yaml`、`swagger.yaml` | 认证/租户、人员 JWT、管理端点、日志、流量治理及监控 |
+| 安全与可观测性 | `security-auth.yaml`、`actuator.yaml`、`logging.yml`、`traffic-governance.yaml`、`local-canary.yaml`、`swagger.yaml` | 数据权限/租户、管理端点、日志、流量治理及监控 |
 | 服务配置 | `{service}-spring.yaml` | 同一服务的数据源、模型选择、路由及服务专属参数；共享配置仍独立维护 |
 
 分类是维护索引，不是新的目录或 group。当前共享配置使用 `DEFAULT_GROUP`；经单独授权并验证后，5 个服务专属文件合并到相邻的 `{service}-spring.yaml`，3 个空服务文件移除。不得在纯注释任务中擅自再次调整结构。
