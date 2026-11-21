@@ -1,6 +1,6 @@
 package com.kellen.agent.security;
 
-import com.ai.agent.support.FakeIssuer;
+import com.kellen.security.oauth2.test.FakeIssuer;
 import com.kellen.agent.dto.AgentChatRequest;
 import com.kellen.agent.memory.DubboMemoryAgentClient;
 import com.kellen.rpc.memory.MemoryRetrievalRpcDTO;
