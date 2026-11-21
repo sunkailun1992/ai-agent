@@ -1,6 +1,5 @@
 package com.kellen.agent.security;
 
-import com.kellen.agent.AiAgentApplication;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -34,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * 覆盖 Boot、Spring Cloud 与 Nacos 在本服务实际注册的全部端点，不调用模型。另挂测试专用的通配端点和一个
  * 映射在端点根路径下的独立 Servlet，验证点段与 Servlet 映射都不能绕开保护范围。</p>
  */
-@SpringBootTest(classes = {AiAgentApplication.class, ActuatorProbeConfiguration.class,
+@SpringBootTest(classes = {com.ai.agent.TestAiAgentApplication.class, ActuatorProbeConfiguration.class,
         ActuatorAccessHttpTest.ExtraServletConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
@@ -64,7 +63,8 @@ class ActuatorAccessHttpTest extends ActuatorHttpTestSupport {
     @Test void envRejectsRequestWithoutToken() throws Exception {
         HttpResponse<String> response = get(port, "/actuator/env", null);
         assertThat(response.statusCode()).isEqualTo(401);
-        assertThat(response.body()).isEqualTo("{\"code\":\"ACTUATOR_AUTH_REQUIRED\"}");
+        // utils 的运维令牌链只回 401，不带正文，也不回显令牌。
+        assertThat(response.body()).isEmpty();
     }
 
     @Test void endpointLinksRejectRequestWithoutToken() throws Exception {
@@ -121,34 +121,41 @@ class ActuatorAccessHttpTest extends ActuatorHttpTestSupport {
     }
 
     @Test void nonCanonicalPathsCannotReachProtectedEndpoints() throws Exception {
+        // 与其他服务一样由 Spring Security 拦截：解码后仍是规范路径的进运维令牌链（401）；分号、点段、双斜线、编码点等非规范路径
+        // 由 StrictHttpFirewall 在进任何过滤链之前拒绝（400）；编码斜线 Tomcat 默认拒绝。都到不了端点。
         Map<String, Integer> expected = new LinkedHashMap<>();
-        for (String path : new String[]{"/actuator/env/", "/%61ctuator/env", "/actuator/%65nv", "/actuator;a=b/env",
-                "/actuator/env;a=b", "/actuator/health/../env", "/actuator/health/..;/env", "/actuator/health;/../env",
-                "/actuator/health/%2e%2e/env", "/x/../actuator/env", "//actuator/env", "/actuator//env",
-                "/actuator/./env", "/actuator/health;a=b"}) {
+        for (String path : new String[]{"/actuator/env/", "/%61ctuator/env", "/actuator/%65nv"}) {
             expected.put(path, 401);
         }
-        // Tomcat 默认拒绝编码斜线，请求到不了过滤器。
-        expected.put("/actuator%2fenv", 400);
-        for (Map.Entry<String, Integer> entry : expected.entrySet()) {
-            assertThat(statusOf(port, "GET", entry.getKey(), null)).as(entry.getKey()).isEqualTo(entry.getValue());
+        for (String path : new String[]{"/actuator;a=b/env", "/actuator/env;a=b", "/actuator/health/../env", "/actuator/health/..;/env",
+                "/actuator/health;/../env", "/actuator/health/%2e%2e/env", "/x/../actuator/env", "//actuator/env", "/actuator//env",
+                "/actuator/./env", "/actuator/health;a=b", "/actuator%2fenv"}) {
+            expected.put(path, 400);
         }
+        Map<String, Integer> actual = new LinkedHashMap<>();
+        for (String path : expected.keySet()) {
+            actual.put(path, statusOf(port, "GET", path, null));
+        }
+        assertThat(actual).containsExactlyEntriesOf(expected);
     }
 
     @Test void dotSegmentsCannotBorrowHealthExemptionForCatchAllEndpoint() throws Exception {
         int invocationsBefore = catchAllProbe.invocations();
-        assertThat(statusOf(port, "GET", "/actuator/catchallprobe/../health", null)).isEqualTo(401);
+        assertThat(statusOf(port, "GET", "/actuator/catchallprobe/../health", null)).isEqualTo(400);
         assertThat(catchAllProbe.invocations()).isEqualTo(invocationsBefore);
         assertThat(get(port, "/actuator/catchallprobe/any/path", TOKEN).statusCode()).isEqualTo(200);
     }
 
     @Test void dotSegmentsCannotEscapeEndpointAreaToReachCatchAllEndpoint() throws Exception {
         int invocationsBefore = catchAllProbe.invocations();
+        Map<String, Integer> actual = new LinkedHashMap<>();
         for (String path : new String[]{"/actuator/catchallprobe/../..", "/actuator/catchallprobe/x/../../..",
                 "/actuator;a=b/catchallprobe/../..", "/actuator/catchallprobe/%2e%2e/%2e%2e",
                 "/actuator/catchallprobe/../../api/agents/model"}) {
-            assertThat(statusOf(port, "GET", path, null)).as(path).isEqualTo(401);
+            actual.put(path, statusOf(port, "GET", path, null));
         }
+        // 点段与分号由 StrictHttpFirewall 在进过滤链之前拒绝。
+        assertThat(actual).allSatisfy((path, status) -> assertThat(status).as(path).isEqualTo(400));
         assertThat(catchAllProbe.invocations()).isEqualTo(invocationsBefore);
     }
 
@@ -159,11 +166,17 @@ class ActuatorAccessHttpTest extends ActuatorHttpTestSupport {
             assertThat(statusOf(port, "GET", path, null)).as(path).isEqualTo(401);
         }
         assertThat(extraServlet.invocations).hasValue(invocationsBefore);
-        assertThat(get(port, "/actuator/extra/x", TOKEN).statusCode()).isEqualTo(200);
+        // 端点以外的路径归资源服务器链管，运维令牌打不开，要访问令牌。
+        assertThat(get(port, "/actuator/extra/x", TOKEN).statusCode()).isEqualTo(401);
+        assertThat(extraServlet.invocations).hasValue(invocationsBefore);
     }
 
-    @Test void businessEndpointsDoNotNeedActuatorToken() throws Exception {
-        assertThat(get(port, "/api/agents/model", null).statusCode()).isEqualTo(200);
+    @Test void businessEndpointsAreGuardedByTheResourceServerNotTheActuatorToken() throws Exception {
+        // 业务接口由资源服务器保护：不带访问令牌 401 并带 Bearer 质询，运维令牌也打不开。
+        HttpResponse<String> anonymous = get(port, "/api/agents/model", null);
+        assertThat(anonymous.statusCode()).isEqualTo(401);
+        assertThat(anonymous.headers().firstValue("WWW-Authenticate")).hasValueSatisfying(value -> assertThat(value).startsWith("Bearer"));
+        assertThat(get(port, "/api/agents/model", TOKEN).statusCode()).isEqualTo(401);
     }
 
     private LogLevel configuredLevel() {

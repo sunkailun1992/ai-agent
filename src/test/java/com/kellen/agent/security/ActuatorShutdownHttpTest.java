@@ -1,6 +1,5 @@
 package com.kellen.agent.security;
 
-import com.kellen.agent.AiAgentApplication;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>保护失效时端点会在约 0.5 秒后真的关闭本测试上下文；这里监听关闭事件并留出余量确认没有发生，用例结束后丢弃上下文。</p>
  */
-@SpringBootTest(classes = AiAgentApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+@SpringBootTest(classes = com.ai.agent.TestAiAgentApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "spring.cloud.nacos.config.enabled=false",
                 "spring.cloud.nacos.discovery.enabled=false",

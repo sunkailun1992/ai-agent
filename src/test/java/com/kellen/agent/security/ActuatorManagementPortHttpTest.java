@@ -1,6 +1,5 @@
 package com.kellen.agent.security;
 
-import com.kellen.agent.AiAgentApplication;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>独立管理端口由 Boot 在子上下文另起一个 Tomcat，主上下文的普通 Filter 不会自动挂过去；
  * 这里带上 management.server.base-path，用真实端口确认子容器里的保护、探活与令牌轮换。</p>
  */
-@SpringBootTest(classes = {AiAgentApplication.class, ActuatorProbeConfiguration.class},
+@SpringBootTest(classes = {com.ai.agent.TestAiAgentApplication.class, ActuatorProbeConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "spring.cloud.nacos.config.enabled=false",
@@ -67,8 +66,9 @@ class ActuatorManagementPortHttpTest extends ActuatorHttpTestSupport {
     /** 规范化后正好落在 context 根（如 /manage/actuator/catchallprobe/../..）的请求由 Tomcat 直接 302 到 /manage/，到不了应用。 */
     @Test void managementPortDotSegmentsCannotEscapeToCatchAllEndpoint() throws Exception {
         int invocationsBefore = catchAllProbe.invocations();
-        assertThat(statusOf(managementPort, "GET", "/manage/actuator/catchallprobe/../../x", null)).isEqualTo(401);
-        assertThat(statusOf(managementPort, "GET", "/manage/actuator/catchallprobe/../health", null)).isEqualTo(401);
+        // 点段由 StrictHttpFirewall 在进过滤链之前拒绝；管理子容器同样挂着 Spring Security 的过滤器。
+        assertThat(statusOf(managementPort, "GET", "/manage/actuator/catchallprobe/../../x", null)).isEqualTo(400);
+        assertThat(statusOf(managementPort, "GET", "/manage/actuator/catchallprobe/../health", null)).isEqualTo(400);
         assertThat(catchAllProbe.invocations()).isEqualTo(invocationsBefore);
     }
 
@@ -84,7 +84,9 @@ class ActuatorManagementPortHttpTest extends ActuatorHttpTestSupport {
         }
     }
 
-    @Test void applicationPortKeepsServingBusinessEndpoints() throws Exception {
-        assertThat(get(port, "/api/agents/model", null).statusCode()).isEqualTo(200);
+    @Test void applicationPortKeepsBusinessEndpointsUnderTheResourceServer() throws Exception {
+        // 业务端口照常由资源服务器保护（不带访问令牌 401），不受管理端口的运维令牌影响。
+        assertThat(get(port, "/api/agents/model", null).statusCode()).isEqualTo(401);
+        assertThat(get(port, "/api/agents/model", TOKEN).statusCode()).isEqualTo(401);
     }
 }

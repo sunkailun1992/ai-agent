@@ -1,6 +1,5 @@
 package com.ai.agent.service;
 
-import com.kellen.agent.AiAgentApplication;
 import com.kellen.agent.service.AiChatClientProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterAll;
@@ -23,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * AI Provider 选择链路测试。
  */
-@SpringBootTest(classes = AiAgentApplication.class, properties = {
+@SpringBootTest(classes = com.ai.agent.TestAiAgentApplication.class, properties = {
         "spring.cloud.nacos.config.enabled=false",
         "spring.cloud.nacos.discovery.enabled=false",
         "spring.ai.google.genai.api-key=test-key",

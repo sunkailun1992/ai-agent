@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ai.agent"
-version = "0.3.7"
+version = "0.4.0"
 
 def privateMavenUrl = providers.gradleProperty("privateMavenUrl")
         .orElse(providers.environmentVariable("PRIVATE_MAVEN_URL"))
@@ -22,7 +22,9 @@ ext {
             springCloudAlibaba: "2025.1.0.0",
             nacosClient       : "3.3.0",
             dubbo             : "3.3.7",
-            rpcApi            : "1.0.9"
+            seata             : "2.6.0",           // 与其它个人服务对齐，包含 Spring Boot 4 自动配置兼容修复。
+            utils             : "2.0.1",           // 公共 utils 包版本：Keycloak 资源服务器、业务上下文、动态数据源与中间件。
+            rpcApi            : "2.0.0"            // 公共 RPC 契约包版本，provider/consumer 必须保持一致。
     ]
 }
 
@@ -71,13 +73,11 @@ dependencyManagement {
 }
 
 dependencies {
-    implementation "com:traffic-canary:0.1.1"
     implementation "org.springframework.boot:spring-boot-starter-web"
     implementation "org.springframework.boot:spring-boot-starter-webflux"
     implementation "org.springframework.boot:spring-boot-starter-actuator"
     implementation "io.micrometer:micrometer-registry-prometheus"
     implementation "io.opentelemetry:opentelemetry-api:1.67.0"
-    implementation "com:fleet-observability:0.1.4" // 安全 HTTP 终态和固定 ECS 字段；不引入重型 utils。
     testImplementation "io.opentelemetry:opentelemetry-sdk-testing:1.67.0"
     implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-discovery"
     implementation "com.alibaba.cloud:spring-cloud-starter-alibaba-nacos-config"
@@ -85,8 +85,10 @@ dependencies {
     implementation "org.apache.dubbo:dubbo-spring-boot-starter:${versions.dubbo}"
     implementation "org.apache.dubbo:dubbo-registry-nacos:${versions.dubbo}"
     implementation "com:rpc-api:${versions.rpcApi}"
+    implementation "com:utils:${versions.utils}"                               // 第5阶段起与其他服务一样完整引入 utils：资源服务器与业务上下文、动态数据源、MyBatis-Mate、Redis、Seata 等；traffic-canary、fleet-observability 随它传递。
     implementation "org.springframework.ai:spring-ai-starter-model-google-genai"
     implementation "org.springframework.ai:spring-ai-openai"
+    runtimeOnly "org.postgresql:postgresql"                                  // 运行期连接 PostgreSQL 的 JDBC 驱动（本服务库只有 Seata AT 的 undo_log）。
     testImplementation "org.springframework.boot:spring-boot-starter-test"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher"
 }
@@ -101,6 +103,10 @@ configurations.configureEach {
                 && (details.requested.name == "nacos-client" || details.requested.name.startsWith("nacos-"))) {
             details.useVersion versions.nacosClient
             details.because "Nacos client must match the 3.3.0 server line used by the shared microservice environment."
+        }
+        if (details.requested.group == "org.apache.seata") {
+            details.useVersion versions.seata
+            details.because "Align the Seata client with the verified Spring Boot 4 compatible fleet version."
         }
     }
 }

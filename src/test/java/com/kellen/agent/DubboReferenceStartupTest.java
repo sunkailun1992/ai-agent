@@ -2,12 +2,6 @@ package com.kellen.agent;
 
 import com.kellen.agent.memory.DubboMemoryAgentClient;
 import com.kellen.agent.security.AgentRequestIdentity;
-import com.kellen.agent.security.AgentSessionVerifier;
-import com.kellen.agent.security.AgentSignatureVerifier;
-import com.kellen.rpc.auth.AuthOpenApiRpcService;
-import com.kellen.rpc.auth.AuthSessionIdentityRpcDTO;
-import com.kellen.rpc.auth.AuthSessionRpcService;
-import com.kellen.rpc.auth.OpenApiSignatureVerifyRpcRequest;
 import com.kellen.rpc.memory.MemoryRetrievalRpcDTO;
 import com.kellen.rpc.memory.MemoryRetrievalRpcRequest;
 import com.kellen.rpc.memory.MemoryRetrievalRpcService;
@@ -24,7 +18,6 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.core.env.MapPropertySource;
 
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,36 +29,19 @@ class DubboReferenceStartupTest {
     @Test
     void startupDefersAllReferencesAndFirstCallsKeepTheirContracts() {
         try (var context = new AnnotationConfigApplicationContext()) {
-            context.getEnvironment().getPropertySources().addFirst(new MapPropertySource("gatewayMode",
-                    Map.of("ai.agent.registry.public-base-url", "http://127.0.0.1")));
             context.register(LocalDubboConfiguration.class);
             context.refresh();
 
             Map<Class<?>, ReferenceConfig<?>> references = context.getBean(ReferenceBeanManager.class)
                     .getReferences().stream()
                     .collect(Collectors.toMap(bean -> bean.getObjectType(), bean -> bean.getReferenceConfig()));
-            assertThat(references).containsOnlyKeys(AuthOpenApiRpcService.class, AuthSessionRpcService.class,
-                    MemoryRetrievalRpcService.class);
+            // 第5阶段起不再有 HMAC 验签与会话校验的引用；业务上下文的引用由 utils 的资源服务器自动配置创建，utils 自己的测试覆盖。
+            assertThat(references).containsOnlyKeys(MemoryRetrievalRpcService.class);
             assertThat(references.entrySet()).allSatisfy(entry ->
                     assertThat(entry.getValue().configInitialized()).as(entry.getKey().getName()).isFalse());
-            assertThat(references.get(AuthOpenApiRpcService.class).getParameters())
-                    .containsEntry("traffic.canary.enabled", "true");
             assertThat(references.get(MemoryRetrievalRpcService.class).getParameters())
                     .containsEntry("traffic.canary.enabled", "true");
-            // 本机灰度通道内也校验访问令牌：会话校验同样走灰度 user，本机只有灰度 user 时稳定路由会找不到提供方。
-            assertThat(references.get(AuthSessionRpcService.class).getParameters())
-                    .containsEntry("traffic.canary.enabled", "true");
-
-            var signatureVerifier = context.getBean(AgentSignatureVerifier.class);
-            var signature = new OpenApiSignatureVerifyRpcRequest();
-            assertThatThrownBy(() -> signatureVerifier.verify(signature)).isInstanceOf(SecurityException.class);
-            signature.setClientId("sample-client");
-            signatureVerifier.verify(signature);
-
-            var sessionVerifier = context.getBean(AgentSessionVerifier.class);
-            assertThatThrownBy(() -> sessionVerifier.verify("rejected-sample")).isInstanceOf(SecurityException.class);
-            AgentRequestIdentity identity = sessionVerifier.verify("accepted-sample");
-            assertThat(identity).isEqualTo(new AgentRequestIdentity("sample-user", "sample-tenant"));
+            AgentRequestIdentity identity = new AgentRequestIdentity("sample-user", "sample-tenant");
 
             var request = new MemoryRetrievalRpcRequest();
             request.setPatientId("sample-patient");
@@ -84,7 +60,7 @@ class DubboReferenceStartupTest {
 
     @Configuration(proxyBeanMethods = false)
     @EnableDubbo(scanBasePackages = "com.kellen.agent.dubbotest")
-    @Import({AgentSignatureVerifier.class, AgentSessionVerifier.class, DubboMemoryAgentClient.class})
+    @Import(DubboMemoryAgentClient.class)
     static class LocalDubboConfiguration {
         @Bean
         ApplicationConfig dubboApplication() {
@@ -101,34 +77,6 @@ class DubboReferenceStartupTest {
         @Bean
         ProtocolConfig dubboProtocol() {
             return new ProtocolConfig("injvm");
-        }
-
-        @Bean
-        ServiceBean<AuthOpenApiRpcService> authProvider(ApplicationContext context) {
-            return localService(context, AuthOpenApiRpcService.class, new AuthOpenApiRpcService() {
-                @Override
-                public void verifyOpenApiSignature(OpenApiSignatureVerifyRpcRequest request) {
-                    throw new AssertionError("Signature verification must use the required-signature RPC");
-                }
-
-                @Override
-                public boolean verifyRequiredOpenApiSignature(OpenApiSignatureVerifyRpcRequest request) {
-                    return "sample-client".equals(request.getClientId());
-                }
-            });
-        }
-
-        @Bean
-        ServiceBean<AuthSessionRpcService> sessionProvider(ApplicationContext context) {
-            return localService(context, AuthSessionRpcService.class, token -> {
-                if (!"accepted-sample".equals(token)) {
-                    return null;
-                }
-                var identity = new AuthSessionIdentityRpcDTO();
-                identity.setUserId("sample-user");
-                identity.setTenantId("sample-tenant");
-                return identity;
-            });
         }
 
         @Bean

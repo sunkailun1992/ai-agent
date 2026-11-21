@@ -1,6 +1,5 @@
 package com.kellen.agent.security;
 
-import com.kellen.agent.AiAgentApplication;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * 独立管理端口且端点根路径设为 / 时，端点直接挂在管理端口根下，目录页就是 /，同样需要令牌。
  */
-@SpringBootTest(classes = {AiAgentApplication.class, ActuatorProbeConfiguration.class},
+@SpringBootTest(classes = {com.ai.agent.TestAiAgentApplication.class, ActuatorProbeConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "spring.cloud.nacos.config.enabled=false",
@@ -43,8 +42,9 @@ class ActuatorManagementRootBasePathHttpTest extends ActuatorHttpTestSupport {
 
     @Test void dotSegmentsCannotReachCatchAllEndpointThroughRoot() throws Exception {
         int invocationsBefore = catchAllProbe.invocations();
-        assertThat(statusOf(managementPort, "GET", "/catchallprobe/..", null)).isEqualTo(401);
-        assertThat(statusOf(managementPort, "GET", "/catchallprobe/../health", null)).isEqualTo(401);
+        // 点段由 StrictHttpFirewall 在进过滤链之前拒绝。
+        assertThat(statusOf(managementPort, "GET", "/catchallprobe/..", null)).isEqualTo(400);
+        assertThat(statusOf(managementPort, "GET", "/catchallprobe/../health", null)).isEqualTo(400);
         assertThat(catchAllProbe.invocations()).isEqualTo(invocationsBefore);
     }
 }

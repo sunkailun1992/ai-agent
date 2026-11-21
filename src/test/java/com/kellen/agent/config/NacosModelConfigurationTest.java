@@ -44,10 +44,13 @@ class NacosModelConfigurationTest {
                         "optional:nacos:reuse-configuration.yaml?refreshEnabled=true",
                         "optional:nacos:traffic-governance.yaml?refreshEnabled=true",
                         "nacos:actuator.yaml?refreshEnabled=true",
-                        "nacos:security-jwt.yaml?refreshEnabled=true",
                         "optional:nacos:swagger.yaml?refreshEnabled=true",
                         "optional:nacos:dubbo.yaml?refreshEnabled=true",
-                        "optional:nacos:ai-agent-spring.yaml?refreshEnabled=true"));
+                        "optional:nacos:ai-agent-spring.yaml?refreshEnabled=true",
+                        // 第5阶段起与其他服务一样接入 utils：MyBatis-Plus、Redis、Seata 的共享配置，不再导入 security-jwt.yaml。
+                        "optional:nacos:mybatis-plus.yaml?refreshEnabled=true",
+                        "optional:nacos:redis.yaml?refreshEnabled=true",
+                        "optional:nacos:seata.yaml?refreshEnabled=true"));
         if ("dev".equals(profile)) {
             imports.add("nacos:local-canary.yaml?refreshEnabled=false");
         }

@@ -25,7 +25,7 @@
 
 - 项目名称：`ai-agent`
 - 项目类型：AI Agent 执行层服务
-- 技术栈：Java 21、Spring Boot 4、Spring AI 2、Spring Cloud Alibaba、Nacos、Dubbo、Gradle Wrapper、`com:rpc-api`
+- 技术栈：Java 21、Spring Boot 4、Spring AI 2、Spring Cloud Alibaba、Nacos、Dubbo、Gradle Wrapper、`com:rpc-api`、`com:utils`（第5阶段起与其他服务一样完整接入）
 - 外部模型：Google Gemini、DeepSeek/OpenAI-compatible、通义千问 DashScope/OpenAI-compatible
 - 核心职责：承载可拆分的 Spring AI Agent 执行逻辑，对外提供患者分析与报告解读 Agent 接口
 - 核心风险：模型 Provider 选错、Prompt 污染、外部媒体 URL SSRF、密钥泄露、患者资料越权、日志输出用户隐私、把主 `ai` 服务的会话状态误搬到 Agent 层
@@ -63,7 +63,8 @@
 - 多模态附件 URL 默认不可信，必须限制协议、MIME、远端 Content-Type、数量和大小；不得支持本地文件路径、classpath、ftp、jar 等协议。
 - `application.yml` 只保留本地启动和 Nacos import 入口。模型部署、上游 provider 凭据与调用治理以 LiteLLM 原生控制台为唯一源；Agent 通过私有 OS 环境持有自己的最小权限 virtual key，Nacos 服务配置只引用占位符与网关连接信息。经明确记录的未迁移 provider 可暂保原直连凭据，但不能据此恢复共享模型密钥导入。数据库、注册发现等基础设施配置继续由 Nacos 管理，所有真实值不得进入 Git。
 - `ai-agent-spring.yaml` 位于当前全局 Nacos 配置 group `DEFAULT_GROUP`；不要再新增 `group=test` 的服务配置引用。
-- 当前 `ai-agent` 不使用业务数据库；如果后续接入 PostgreSQL，表结构（含 Seata AT 的 `undo_log`）只由本服务 `src/main/resources/db/migration` 的 Flyway 迁移管理，新库保持空库，由首次启动时的 Flyway 建表，不手工执行任何公共脚本；数据源块固定 `seata: true`，utils 在建数据源之前先执行迁移。
+- `ai-agent` 不放业务表：自己的库 `github_dev_ai_agent` 里只有 Seata AT 的 `undo_log`（第5阶段起与其他服务一样接入 utils 的动态数据源，数据源块固定 `seata: true`）。表结构只由本服务 `src/main/resources/db/migration` 的 Flyway 迁移管理，已提交的迁移文件不修改，新库保持空库，由首次启动时的 Flyway 建表，utils 在建数据源之前先执行迁移；不手工执行任何公共脚本。
+- 身份只来自资源服务器（utils：只收 ai 经令牌交换取得、受众 `github-ai-agent`、`azp=github-ai` 的 RS256 令牌），用户取令牌的 `user_id`，活动租户经 user 服务业务上下文核实（`X-Tenant-Id`），`AgentRequestIdentity.current` 还要求请求正文的用户与租户一致；不恢复 HMAC 服务签名或任何身份请求头。Actuator 运维令牌由 utils 的 `ActuatorSecurityConfig` 统一保护，不在本服务另写过滤器。
 - 新增本服务对外 Controller、服务前缀，或新增后续独立 Agent 服务需要经网关访问时，必须同步评估 `../gateway` 的 Nacos `gateway-spring.yaml`；需要 Swagger UI 聚合的服务要先保证对应网关文档路径返回 200，再加入 `springdoc.swagger-ui.urls`。
 - 跨服务 Dubbo RPC 接口和 DTO 统一维护在同级 `../rpc-api`；`ai-agent` 只实现或调用契约，不在本服务或 `utils` 复制接口定义。
 - 本项目不得引入交易、K 线、下单、账户、行情、Discord、Apple 订阅等量化业务能力。

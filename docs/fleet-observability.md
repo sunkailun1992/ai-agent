@@ -18,7 +18,7 @@
 
 部署前必须核实绑定地址、主/管理两个实际监听端口、Prometheus 到管理地址的可达性和防火墙边界。不能用公网网关业务路由暴露采集接口。应分别验证无令牌 401、错误令牌 401、正确令牌 200 和输出包含 JVM 指标。不得为采集设置 exposure=*。
 
-沿用 `ActuatorAccessFilter` 与独立管理子容器桥接，health 保留匿名探活，其余已配置端点需要运维令牌。没有新增敏感管理端点暴露；独立管理端口桥接缺失时抛错使启动失败，不能仅记录日志后继续运行。
+第5阶段起 Actuator 改由 utils 的 `ActuatorSecurityConfig`（Spring Security）保护，独立管理端口由 Spring Boot 挂上同一条过滤链。没有新增敏感管理端点暴露；独立管理端口桥接缺失时抛错使启动失败，不能仅记录日志后继续运行。
 
 OpenAI-compatible 模型使用应用的 `ObservationRegistry`。患者分析流保留 `ai.agent.execution` 整轮 span（`gen_ai.operation.name=invoke_agent`）。Prompt 解析、请求组装和 `memory.retrieve` 在整轮父 span 内完成；供应商实际同步调用或流式源订阅至终态使用独立的 `ai.model.call` 子 span（`gen_ai.operation.name=chat`）。模型时长不包含前置 Prompt/记忆准备；用量、模型响应元数据和 `event=ai.model.call` 日志只归属于模型子 span，避免父子重复计数。Prompt 不可用时仅终结整轮失败，不伪造未发生的模型调用。`memory.retrieve` 是模型调用的同级固定编排步骤，不称为模型自主 tool calling。DTO 的 `traceId` 仍是既有业务关联字段，不作为 OTel trace ID，不更改请求契约。
 

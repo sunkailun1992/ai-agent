@@ -1,6 +1,5 @@
 package com.kellen.agent.security;
 
-import com.kellen.agent.AiAgentApplication;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Nacos 配置了 server.servlet.context-path 与 spring.mvc.servlet.path 时，端点落在两段前缀之下，保护与探活跟着走。
  */
-@SpringBootTest(classes = {AiAgentApplication.class, ActuatorProbeConfiguration.class},
+@SpringBootTest(classes = {com.ai.agent.TestAiAgentApplication.class, ActuatorProbeConfiguration.class},
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "spring.cloud.nacos.config.enabled=false",
@@ -46,7 +45,8 @@ class ActuatorServletPathHttpTest extends ActuatorHttpTestSupport {
         assertThat(catchAllProbe.invocations()).isEqualTo(invocationsBefore);
     }
 
-    @Test void businessEndpointsKeepWorking() throws Exception {
-        assertThat(get(port, "/ai-agent/svc/api/agents/model", null).statusCode()).isEqualTo(200);
+    @Test void businessEndpointsStayUnderTheResourceServer() throws Exception {
+        // 改了 servlet 路径后业务接口仍由资源服务器保护：不带访问令牌 401。
+        assertThat(get(port, "/ai-agent/svc/api/agents/model", null).statusCode()).isEqualTo(401);
     }
 }

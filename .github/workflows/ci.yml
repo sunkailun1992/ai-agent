@@ -32,8 +32,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: sunkailun1992/rpc-api
-          # Match com:rpc-api:1.0.9 exactly when dependency main advances.
-          ref: 8021adbcae7cf1c8c1bd157bf57d482c6fa439ac
+          # Match com:rpc-api:2.0.0 exactly when dependency main advances.
+          ref: 7f840d43c2e85efeabc3f6917298eab8b04e67fc
           path: .ci-rpc-api
 
       - name: Hide CI dependency checkout from scans
@@ -45,17 +45,17 @@ jobs:
         working-directory: .ci-rpc-api
         run: ./gradlew -q publishToMavenLocal
 
-      - name: Checkout lightweight traffic and observability dependencies
+      - name: Checkout utils dependency
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: sunkailun1992/utils
-          # Match com:traffic-canary:0.1.1 and com:fleet-observability:0.1.4 exactly when dependency main advances.
-          ref: 33a648dee9df256c494f0e61e59070c924fe90d4
+          # Match com:utils:2.0.1 (with its traffic-canary and fleet-observability modules) exactly when dependency main advances.
+          ref: 04396b8b2c50efe92bed6ba6fb14abb0a987ffc6 # com:utils 2.0.1
           path: .ci-utils
 
-      - name: Publish lightweight dependencies to Maven Local
+      - name: Publish utils to Maven Local
         working-directory: .ci-utils
-        run: ./gradlew -q :fleet-observability:publishToMavenLocal :traffic-canary:publishToMavenLocal
+        run: ./gradlew -q publishToMavenLocal
 
       - name: Prepare scripts
         run: chmod +x gradlew scripts/check-secrets.sh

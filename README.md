@@ -27,7 +27,7 @@
 
 主 `ai` 请求携带 `X-AI-Stream-Protocol: typed-sse-v1`，本服务以相同响应头确认。
 不支持的请求版本在模型执行前返回 HTTP 406。无该请求头的旧调用方仍可消费文本 `data`；
-本服务同样返回协议确认头。服务 HMAC、终端 User JWT 和 Memory 租户校验保持原边界。
+本服务同样返回协议确认头。令牌交换（受众 `github-ai-agent`、`azp=github-ai`）、业务上下文核实的租户和 Memory 租户校验保持原边界。
 
 | AI 消费方 | Agent 执行方 | 行为与交付边界 |
 |---|---|---|
@@ -97,10 +97,12 @@ ai:
 - `reuse-configuration.yaml`
 - `traffic-governance.yaml`
 - `actuator.yaml`
-- `security-jwt.yaml`
 - `swagger.yaml`
 - `dubbo.yaml`
 - `ai-agent-spring.yaml`
+- `mybatis-plus.yaml`
+- `redis.yaml`
+- `seata.yaml`
 - `local-canary.yaml`（仅 dev profile）
 
 当前 fleet 的服务业务配置和 `{svc}-spring.yaml` 已统一放在 `DEFAULT_GROUP`。
@@ -205,11 +207,15 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 从 `0.3.2` 起，每次模型调用的安全元数据合并会保留已报告的终止原因：后续未知值（包括 SDK 的 `_UNKNOWN` 和安全回退 `other`）不能覆盖 `stop` 等已知终止原因，后续已知终止原因仍可更新；全程只有未知值时仍报告 `other`，完全未报告时不补造原因。真实 Spring AI 2.0/OpenAI SDK 4.39 回环 HTTP 回归证明，`stop` 后带空 `delta`、空 `finish_reason` 的兼容用量尾块会被框架转换为 `_UNKNOWN`，旧合并逻辑因此把最终 Span 改为 `other`；修复后保留 `stop` 及末次实际用量。空 `choices` 尾块、未知尾块、后续已知原因和全未知流分别覆盖。这是兼容尾块的源码与合成协议复现，不代表已确认某次实际供应商响应使用该精确形态；部署后的真实安全投影仍须单独验收。响应正文、SSE、用量、取消与重试策略均不由此合并规则改变。
 
+### 第5阶段：完整接入 utils（0.4.0）
+
+依赖改为 `com:utils:2.0.1`、`com:rpc-api:2.0.0`（`traffic-canary`、`fleet-observability` 随 utils 传递），启动类按 `com.kellen` 组件扫描，与其他服务一样使用 utils 的资源服务器与业务上下文、Actuator 运维令牌链、动态数据源、Redis、Seata 与 MyBatis 配置；profile 补导入 `mybatis-plus.yaml`、`redis.yaml`、`seata.yaml`，不再导入 `security-jwt.yaml`。新库 `github_dev_ai_agent`（专属账号、连接上限 10）只由 Flyway V1 建 Seata AT 的 `undo_log`，主库 4、灰度 2 个连接；数据源地址与账号在 Nacos `ai-agent-spring.yaml`。删除 HMAC 服务签名（`AgentServiceAuthenticationFilter`、`AgentSignatureVerifier`、`AgentSessionVerifier`、`ReplayableAgentRequest`、`ai.agent.security.*`）与本服务自写的 Actuator 过滤器及其管理端口桥接，改用 utils 的同类实现：非规范路径（分号、点段、双斜线、编码点）由 Spring Security 的 `StrictHttpFirewall` 直接 400，端点以外的路径要访问令牌，运维令牌只开 Actuator 端点，令牌引用解析不了时服务起不来。需与 ai 1.9.x、网关 BFF 一起切换。
+
 ### 终端身份与 Memory 租户
 
-网关模式的患者分析入口先要求允许的服务客户端通过原始请求 HMAC 验签，再通过 `com:rpc-api:1.0.9` 的 `AuthSessionRpcService` 独立验证 Authorization 中的终端 User access JWT。已验证 user/tenant 必须与签名正文一致，否则在模型/Memory 调用前拒绝。服务签名、`caller`、正文租户和 `sourceTenantId` 均不能独自建立用户授权；token 不放入正文、返回 DTO、日志或异常。
+全部 `/api/agents/**` 由 utils 的资源服务器保护：只收 ai 经 RFC 8693 令牌交换取得的 Keycloak 令牌（受众 `github-ai-agent`、`azp=github-ai`、RS256），网关签给业务后端的 `github-api` 令牌 401，别的客户端签的 403。用户取令牌的 `user_id`，活动租户由 user 服务的业务上下文核实（`X-Tenant-Id` 只能选用户所属的租户，停用用户与他人租户 403）；`AgentRequestIdentity.current` 还要求请求正文的 user/tenant 与之一致，否则在模型/Memory 调用前 403。`X-Open-*` 等旧 HMAC 头一律不再起作用，`caller`、正文租户和 `sourceTenantId` 均不能建立用户授权；令牌不放入正文、返回 DTO、日志或异常。
 
-Servlet 入口捕获的不可变身份独立于线程状态传入 Memory adapter；每次 RPC 在实际执行线程绑定 canonical `tenantId` attachment，并在成功、失败时恢复旧值。`sourceTenantId` 只是业务来源分区，不覆盖授权租户。旧内网模式或没有可信身份的直接调用可执行不带 scoped Memory 的模型路径，不从 DTO 默认值恢复租户；候选记忆写入当前没有可信授权入口，因此失败关闭。
+Servlet 入口捕获的不可变身份独立于线程状态传入 Memory adapter；每次 RPC 在实际执行线程绑定 canonical `tenantId` attachment，并在成功、失败时恢复旧值。`sourceTenantId` 只是业务来源分区，不覆盖授权租户。没有可信身份时（非请求线程）只执行不带 scoped Memory 的模型路径，不从 DTO 默认值恢复租户；候选记忆写入当前没有可信授权入口，因此失败关闭。
 
 ### SSE 取消与厂商 HTTP 释放
 
