@@ -211,6 +211,8 @@ Nacos AI Registry 是 Agent 能力目录和接口发现中心。主 `ai` 服务�
 
 依赖改为 `com:utils:2.0.1`、`com:rpc-api:2.0.0`（`traffic-canary`、`fleet-observability` 随 utils 传递），启动类按 `com.kellen` 组件扫描，与其他服务一样使用 utils 的资源服务器与业务上下文、Actuator 运维令牌链、动态数据源、Redis、Seata 与 MyBatis 配置；profile 补导入 `mybatis-plus.yaml`、`redis.yaml`、`seata.yaml`，不再导入 `security-jwt.yaml`。新库 `github_dev_ai_agent`（专属账号、连接上限 10）只由 Flyway V1 建 Seata AT 的 `undo_log`，主库 4、灰度 2 个连接；数据源地址与账号在 Nacos `ai-agent-spring.yaml`。删除 HMAC 服务签名（`AgentServiceAuthenticationFilter`、`AgentSignatureVerifier`、`AgentSessionVerifier`、`ReplayableAgentRequest`、`ai.agent.security.*`）与本服务自写的 Actuator 过滤器及其管理端口桥接，改用 utils 的同类实现：非规范路径（分号、点段、双斜线、编码点）由 Spring Security 的 `StrictHttpFirewall` 直接 400，端点以外的路径要访问令牌，运维令牌只开 Actuator 端点，令牌引用解析不了时服务起不来。需与 ai 1.9.x、网关 BFF 一起切换。
 
+`0.4.1` 将 utils 从 `2.0.1` 升到 `2.0.5`，修复业务上下文的 Dubbo 引用：此前 utils 把引用写成资源服务器自动配置里的嵌套配置，本服务主类在 `com.kellen` 包、默认组件扫描覆盖 utils，嵌套配置被提前当作普通配置处理，早于 `@EnableDubbo` 登记引用注解处理器，引用建不出来，所有用户令牌都按“用户不存在”返回 401（2.0.4 改为单独的自动配置，只由 imports 文件加载）；引用与本服务其他 Dubbo 引用一样在启动时不初始化（2.0.5，`init = false`），第一次需要业务上下文的请求才初始化并连接。另带上 2.0.3 的受保护资源元数据（`authorization_servers` 声明为 Keycloak 签发方）；完整上下文测试不配注册中心，2.0.5 起照常启动。本服务代码不变。
+
 ### 终端身份与 Memory 租户
 
 全部 `/api/agents/**` 由 utils 的资源服务器保护：只收 ai 经 RFC 8693 令牌交换取得的 Keycloak 令牌（受众 `github-ai-agent`、`azp=github-ai`、RS256），网关签给业务后端的 `github-api` 令牌 401，别的客户端签的 403。用户取令牌的 `user_id`，活动租户由 user 服务的业务上下文核实（`X-Tenant-Id` 只能选用户所属的租户，停用用户与他人租户 403）；`AgentRequestIdentity.current` 还要求请求正文的 user/tenant 与之一致，否则在模型/Memory 调用前 403。`X-Open-*` 等旧 HMAC 头一律不再起作用，`caller`、正文租户和 `sourceTenantId` 均不能建立用户授权；令牌不放入正文、返回 DTO、日志或异常。

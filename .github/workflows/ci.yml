@@ -49,8 +49,8 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: sunkailun1992/utils
-          # Match com:utils:2.0.1 (with its traffic-canary and fleet-observability modules) exactly when dependency main advances.
-          ref: 04396b8b2c50efe92bed6ba6fb14abb0a987ffc6 # com:utils 2.0.1
+          # Match com:utils:2.0.5 (with its traffic-canary and fleet-observability modules) exactly when dependency main advances.
+          ref: c45aaab4f9592b9bf83289ad712b67adc243f945 # com:utils 2.0.5
           path: .ci-utils
 
       - name: Publish utils to Maven Local
