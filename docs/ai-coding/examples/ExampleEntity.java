@@ -12,7 +12,7 @@ import lombok.Setter;
  * <p>
  * AI 新增实体时，应继承 EntityBase，并只声明当前业务表自己的字段。
  * 公共字段 id、code、description、createDateTime、modifyDateTime、isDelete、
- * label、sorting、version、tenantId 已由 EntityBase 统一承接。
+ * label、sort、version、tenantId 已由 EntityBase 统一承接。
  *
  * @author sunkailun
  * @className ExampleEntity
