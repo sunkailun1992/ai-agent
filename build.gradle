@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.ai.agent"
-version = "0.4.5"
+version = "0.4.6"
 
 def privateMavenUrl = providers.gradleProperty("privateMavenUrl")
         .orElse(providers.environmentVariable("PRIVATE_MAVEN_URL"))
@@ -23,7 +23,7 @@ ext {
             nacosClient       : "3.3.0",
             dubbo             : "3.3.7",
             seata             : "2.6.0",           // 与其它个人服务对齐，包含 Spring Boot 4 自动配置兼容修复。
-            utils             : "2.0.9",           // 公共 utils 包版本：Keycloak 资源服务器、业务上下文、动态数据源与中间件。
+            utils             : "2.1.0",           // 公共 utils 包版本：Keycloak 资源服务器、业务上下文、动态数据源与中间件。
             rpcApi            : "2.0.0"            // 公共 RPC 契约包版本，provider/consumer 必须保持一致。
     ]
 }
